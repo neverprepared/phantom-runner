@@ -5,6 +5,7 @@ struct CredentialsTab: View {
     @State private var apiKey: String = ""
     @State private var saved: Bool = false
     @State private var saveError: String?
+    @State private var showingPairing: Bool = false
 
     var body: some View {
         Form {
@@ -30,16 +31,16 @@ struct CredentialsTab: View {
             }
 
             Section("Pairing") {
-                // R7 will hook this up — paste a pairing token (or scan QR
-                // from the Wails app) and the runner fetches api_url + key.
-                Button("Pair with a brainbox API…") { /* R7 */ }
-                    .disabled(true)
-                Text("Pairing is the easier setup path — the Wails app generates a one-time token and the runner claims it.")
+                Button("Pair with a brainbox API…") { showingPairing = true }
+                Text("Easier than pasting a 64-char key. The Wails app's Pair-a-Runner screen generates a one-time token; paste it here and the runner pulls its API URL + key over a single round-trip.")
                     .foregroundColor(.secondary)
                     .font(.caption)
             }
         }
         .padding()
+        .sheet(isPresented: $showingPairing) {
+            PairingSheet().environmentObject(state)
+        }
     }
 
     private func saveKey() {

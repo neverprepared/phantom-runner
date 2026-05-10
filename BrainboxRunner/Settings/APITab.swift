@@ -3,6 +3,10 @@ import SwiftUI
 struct APITab: View {
     @EnvironmentObject var state: AppState
     @State private var newTag = ""
+    @State private var testing = false
+    @State private var testResult: TestResult?
+
+    private enum TestResult { case success, failure(String) }
 
     var body: some View {
         Form {
@@ -35,13 +39,46 @@ struct APITab: View {
             }
 
             Section {
-                // Test-connection is wired in R3; the button is here so the
-                // layout is final and the muscle memory works.
-                Button("Test connection") { /* R3 */ }
-                    .disabled(true)
+                HStack {
+                    Button {
+                        Task { await runTest() }
+                    } label: {
+                        if testing { ProgressView().controlSize(.small) }
+                        else { Text("Test connection") }
+                    }
+                    .disabled(testing || state.settings.apiURL.isEmpty)
+
+                    switch testResult {
+                    case .success:
+                        Label("OK", systemImage: "checkmark.seal.fill")
+                            .foregroundColor(.green)
+                    case .failure(let msg):
+                        Label(msg, systemImage: "xmark.octagon.fill")
+                            .foregroundColor(.red)
+                            .lineLimit(2)
+                    case .none:
+                        EmptyView()
+                    }
+                }
+
+                Button("Apply & restart runner") {
+                    Task { await state.reloadRunner() }
+                }
             }
         }
         .padding()
+    }
+
+    private func runTest() async {
+        testing = true
+        testResult = nil
+        switch await state.runner.testConnection() {
+        case .success:
+            testResult = .success
+        case .failure(let e):
+            testResult = .failure(e.description)
+        }
+        testing = false
     }
 
     private func addTag() {

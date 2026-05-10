@@ -2,7 +2,6 @@ import Foundation
 import SwiftUI
 
 /// Connection / work status surfaced to the menu bar and Settings.
-/// Networking (R3) will mutate these as registration + polling events fire.
 enum RunnerStatus: String, Codable {
     case disconnected
     case connected
@@ -32,8 +31,21 @@ enum RunnerStatus: String, Codable {
 final class AppState: ObservableObject {
     @Published var status: RunnerStatus = .disconnected
     @Published var settings: SettingsStore
+    private(set) lazy var runner: RunnerCore = RunnerCore(owner: self)
 
     init() {
         self.settings = SettingsStore()
+    }
+
+    /// Called once from the App's onAppear after Keychain is reachable.
+    func startRunnerIfConfigured() async {
+        guard !settings.apiURL.isEmpty, KeychainStore.hasAPIKey() else { return }
+        await runner.start()
+    }
+
+    /// Called when the user saves new URL / name / capabilities — restart so
+    /// the registration picks up the change.
+    func reloadRunner() async {
+        await runner.restart()
     }
 }

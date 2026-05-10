@@ -8,6 +8,7 @@ struct BrainboxRunnerApp: App {
         MenuBarExtra {
             MenuBarView()
                 .environmentObject(state)
+                .task { await state.startRunnerIfConfigured() }
         } label: {
             Image(systemName: state.status.systemImage)
         }

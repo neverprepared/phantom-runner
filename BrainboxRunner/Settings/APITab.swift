@@ -11,6 +11,20 @@ struct APITab: View {
     var body: some View {
         Form {
             Section {
+                HStack(spacing: 8) {
+                    Image(systemName: state.status.systemImage)
+                        .foregroundColor(statusColor)
+                    Text(state.status.label).bold()
+                    Spacer()
+                }
+                if state.status == .disconnected, let err = state.lastError, !err.isEmpty {
+                    Text(err)
+                        .foregroundColor(.red)
+                        .font(.caption)
+                        .lineLimit(3)
+                }
+            }
+            Section {
                 TextField("API URL", text: $state.settings.apiURL)
                     .textFieldStyle(.roundedBorder)
                     .autocorrectionDisabled(true)
@@ -86,5 +100,14 @@ struct APITab: View {
         guard !trimmed.isEmpty, !state.settings.tags.contains(trimmed) else { return }
         state.settings.tags.append(trimmed)
         newTag = ""
+    }
+
+    private var statusColor: Color {
+        switch state.status {
+        case .disconnected: return .red
+        case .connected:    return .green
+        case .busy:         return .yellow
+        case .paused:       return .secondary
+        }
     }
 }

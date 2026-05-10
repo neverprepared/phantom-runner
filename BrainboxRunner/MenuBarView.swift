@@ -11,9 +11,14 @@ struct MenuBarView: View {
 
             Divider()
 
-            // Status block — read-only summary.
             Text(state.status.label)
                 .foregroundColor(statusColor)
+
+            if state.status == .disconnected, let err = state.lastError, !err.isEmpty {
+                Text(err)
+                    .foregroundColor(.red)
+                    .font(.caption)
+            }
 
             if !state.settings.runnerName.isEmpty {
                 Text("Runner: \(state.settings.runnerName)")
@@ -25,13 +30,28 @@ struct MenuBarView: View {
 
             Divider()
 
-            // Controls — most are placeholders until networking lands.
-            if state.status == .paused {
-                Button("Resume") { state.status = .connected }
-            } else {
-                Button("Pause") { state.status = .paused }
+            if state.status == .disconnected {
+                Button("Reconnect") {
+                    Task { await state.reloadRunner() }
+                }
+                .keyboardShortcut("r")
+            } else if state.status == .paused {
+                Button("Resume") { state.runner.resume() }
                     .keyboardShortcut("p")
-                    .disabled(state.status == .disconnected)
+            } else {
+                Button("Pause") { state.runner.pause() }
+                    .keyboardShortcut("p")
+            }
+
+            if let url = dashboardURL {
+                Button("Open dashboard") { NSWorkspace.shared.open(url) }
+            }
+
+            if !state.settings.runnerName.isEmpty {
+                Button("Copy runner name") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(state.settings.runnerName, forType: .string)
+                }
             }
 
             Divider()
@@ -42,19 +62,6 @@ struct MenuBarView: View {
             Button("Quit Runner") { NSApp.terminate(nil) }
                 .keyboardShortcut("q")
         }
-    }
-
-    /// SwiftUI's `\.openSettings` Environment value is macOS 14+; on 13 we
-    /// drop down to the selector that opens the Settings scene's window.
-    private func openSettings() {
-        let selectorName: String
-        if #available(macOS 14, *) {
-            selectorName = "showSettingsWindow:"
-        } else {
-            selectorName = "showPreferencesWindow:"
-        }
-        NSApp.activate(ignoringOtherApps: true)
-        NSApp.sendAction(Selector((selectorName)), to: nil, from: nil)
     }
 
     private var statusColor: Color {
@@ -72,5 +79,20 @@ struct MenuBarView: View {
         if state.settings.utmEnabled    { caps.append("utm") }
         if caps.isEmpty { return "Capabilities: none" }
         return "Capabilities: " + caps.joined(separator: " · ")
+    }
+
+    private var dashboardURL: URL? {
+        URL(string: state.settings.apiURL)
+    }
+
+    private func openSettings() {
+        let selectorName: String
+        if #available(macOS 14, *) {
+            selectorName = "showSettingsWindow:"
+        } else {
+            selectorName = "showPreferencesWindow:"
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.sendAction(Selector((selectorName)), to: nil, from: nil)
     }
 }

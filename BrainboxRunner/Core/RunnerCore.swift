@@ -208,6 +208,7 @@ final class RunnerCore {
 
     private func updateStatus(_ s: RunnerStatus, error: String?) {
         owner?.status = s
+        owner?.lastError = error
         lastError = error
     }
 }

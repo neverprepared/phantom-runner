@@ -30,6 +30,7 @@ enum RunnerStatus: String, Codable {
 @MainActor
 final class AppState: ObservableObject {
     @Published var status: RunnerStatus = .disconnected
+    @Published var lastError: String?
     @Published var settings: SettingsStore
     private(set) lazy var runner: RunnerCore = RunnerCore(owner: self)
 

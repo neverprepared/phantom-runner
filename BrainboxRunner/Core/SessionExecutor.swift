@@ -26,6 +26,13 @@ struct SessionExecutor {
 
     func execute(payload: [String: AnyDecodable]) async -> APIClient.ResultPayload {
         let req = SessionRequest(payload: payload)
+        if req.backend == "utm" {
+            return await executeUTM(req: req)
+        }
+        return await executeDocker(req: req)
+    }
+
+    private func executeDocker(req: SessionRequest) async -> APIClient.ResultPayload {
         let containerName = "\(req.role)-\(req.sessionName)"
 
         do {
@@ -122,7 +129,122 @@ struct SessionExecutor {
         }
     }
 
-    // MARK: - Bundle injection
+    // MARK: - UTM execution
+
+    private func executeUTM(req: SessionRequest) async -> APIClient.ResultPayload {
+        let vmName = "\(req.role)-\(req.sessionName)"
+        let template = req.vmTemplate ?? "brainbox-template"
+        let sshUser = req.sshUser ?? "developer"
+
+        do {
+            Self.log.info("session.create utm start: name=\(req.sessionName, privacy: .public) template=\(template, privacy: .public)")
+            try UTMDriver.clone(template: template, newName: vmName)
+            let mac = try UTMDriver.assignRandomMAC(name: vmName)
+            try UTMDriver.start(name: vmName)
+            _ = try await UTMDriver.waitForStatus(name: vmName, target: "started", timeout: 180)
+
+            let ip = try await UTMDriver.resolveIP(forMAC: mac, timeout: 90)
+            try await SSHDriver.waitForReachable(host: ip, user: sshUser, timeout: 180)
+
+            if req.delivery == "bundle" {
+                try await injectBundleOverSSH(
+                    host: ip,
+                    user: sshUser,
+                    workspaceProfile: req.workspaceProfile,
+                    workspaceHome: req.workspaceHome
+                )
+            }
+
+            let ctx: [String: AnyEncodable] = [
+                "session_name": AnyEncodable(req.sessionName),
+                "container_name": AnyEncodable(vmName),
+                "port": AnyEncodable(0),
+                "role": AnyEncodable(req.role),
+                "state": AnyEncodable("running"),
+                "created_at": AnyEncodable(Int(Date().timeIntervalSince1970 * 1000)),
+                "ttl": AnyEncodable(req.ttl ?? Self.defaultTTL),
+                "hardened": AnyEncodable(req.hardened),
+                "backend": AnyEncodable("utm"),
+                "llm_provider": AnyEncodable(req.llmProvider),
+                "workspace_profile": AnyEncodable(req.workspaceProfile ?? NSNull()),
+                "workspace_home": AnyEncodable(req.workspaceHome ?? NSNull()),
+                "delivery": AnyEncodable(req.delivery),
+                "runner_name": AnyEncodable(runnerName),
+                "vm_template": AnyEncodable(template),
+                "vm_ip": AnyEncodable(ip),
+                "mac_address": AnyEncodable(mac),
+                "ssh_user": AnyEncodable(sshUser),
+                "guest_os": AnyEncodable(req.guestOS),
+            ]
+            Self.log.info("session.create utm done: \(vmName, privacy: .public) ip=\(ip, privacy: .public)")
+            return APIClient.ResultPayload(ok: true, error: nil, data: ctx)
+
+        } catch {
+            // Best-effort: stop the VM but leave it for inspection — UTM keeps
+            // VM bundles even after clone, deleting on failure surprises users.
+            try? UTMDriver.stop(name: vmName)
+            Self.log.error("session.create utm failed: \(String(describing: error), privacy: .public)")
+            return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
+        }
+    }
+
+    /// SSH-based bundle injection: same chain as the Docker path, but every
+    /// hop is an `ssh` invocation against the guest. Assumes the guest image
+    /// has `brainbox-init` on PATH and the developer user can write to
+    /// /run/brainbox (or we mkdir it ourselves first).
+    private func injectBundleOverSSH(
+        host: String,
+        user: String,
+        workspaceProfile: String?,
+        workspaceHome: String?
+    ) async throws {
+        // Prepare /run/brainbox with sane perms. This is tmpfs by convention
+        // (Docker side) but on a VM we have to create the dir ourselves.
+        _ = try await SSHDriver.exec(
+            host: host, user: user,
+            command: "sudo mkdir -p /run/brainbox && sudo chown $USER /run/brainbox && chmod 0700 /run/brainbox"
+        )
+
+        // 1. Keygen on the guest.
+        _ = try await SSHDriver.exec(
+            host: host, user: user,
+            command: "brainbox-init keygen --identity-out /run/brainbox/identity.key --recipient-out /run/brainbox/recipient.txt"
+        )
+        let recipientOut = try await SSHDriver.exec(
+            host: host, user: user,
+            command: "cat /run/brainbox/recipient.txt"
+        )
+        let recipient = recipientOut.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard recipient.hasPrefix("age1") else {
+            throw NSError(domain: "SessionExecutor", code: 2, userInfo: [
+                NSLocalizedDescriptionKey: "recipient pubkey malformed: \(recipient.prefix(40))"
+            ])
+        }
+
+        // 2. Seal via central API.
+        let sealed = try await api.sealRequest(
+            workspaceProfile: workspaceProfile,
+            workspaceHome: workspaceHome,
+            recipient: recipient
+        )
+
+        // 3. Stream bundle into the guest via ssh stdin → base64 -d → file.
+        let base64 = sealed.base64EncodedData()
+        _ = try await SSHDriver.exec(
+            host: host, user: user,
+            command: "base64 -d > /run/brainbox/bundle.age && chmod 0600 /run/brainbox/bundle.age",
+            stdin: base64,
+            timeout: 120
+        )
+
+        // 4. Apply on the guest.
+        _ = try await SSHDriver.exec(
+            host: host, user: user,
+            command: "brainbox-init apply --identity /run/brainbox/identity.key --bundle /run/brainbox/bundle.age --home $HOME"
+        )
+    }
+
+    // MARK: - Bundle injection (docker path)
 
     private func injectBundle(
         containerName: String,
@@ -207,6 +329,10 @@ struct SessionRequest {
     let hardened: Bool
     let llmProvider: String
     let ttl: Int?
+    let backend: String
+    let vmTemplate: String?
+    let guestOS: String
+    let sshUser: String?
 
     init(payload: [String: AnyDecodable]) {
         func str(_ k: String) -> String? {
@@ -226,5 +352,9 @@ struct SessionRequest {
         self.hardened = bool("hardened", default: false)
         self.llmProvider = str("llm_provider") ?? "claude"
         self.ttl = int("ttl")
+        self.backend = str("backend") ?? "docker"
+        self.vmTemplate = str("vm_template")
+        self.guestOS = str("guest_os") ?? "linux"
+        self.sshUser = str("ssh_user")
     }
 }

@@ -182,10 +182,28 @@ final class RunnerCore {
         guard let owner else {
             return APIClient.ResultPayload(ok: false, error: "runner state lost", data: nil)
         }
-        guard owner.settings.dockerEnabled else {
+        let requestedBackend = (payload["backend"]?.value as? String) ?? "docker"
+        switch requestedBackend {
+        case "docker":
+            guard owner.settings.dockerEnabled else {
+                return APIClient.ResultPayload(
+                    ok: false,
+                    error: "docker capability disabled in runner settings",
+                    data: nil
+                )
+            }
+        case "utm":
+            guard owner.settings.utmEnabled else {
+                return APIClient.ResultPayload(
+                    ok: false,
+                    error: "utm capability disabled in runner settings",
+                    data: nil
+                )
+            }
+        default:
             return APIClient.ResultPayload(
                 ok: false,
-                error: "docker capability disabled in runner settings",
+                error: "unsupported backend: \(requestedBackend)",
                 data: nil
             )
         }

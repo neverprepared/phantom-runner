@@ -1,0 +1,44 @@
+name: BrainboxRunner
+options:
+  bundleIdPrefix: com.neverprepared
+  deploymentTarget:
+    macOS: "13.0"
+  developmentLanguage: en
+  groupSortPosition: bottom
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    PRODUCT_NAME: "Brainbox Runner"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: ""        # set via export DEVELOPMENT_TEAM=... before xcodegen
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_HARDENED_RUNTIME: YES
+
+targets:
+  BrainboxRunner:
+    type: application
+    platform: macOS
+    sources:
+      - BrainboxRunner
+    info:
+      path: BrainboxRunner/Info.plist
+      properties:
+        CFBundleDisplayName: "Brainbox Runner"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        LSMinimumSystemVersion: "$(MACOSX_DEPLOYMENT_TARGET)"
+        # Menu-bar-only app: no dock icon, no main menu in the menu bar
+        LSUIElement: true
+        NSHumanReadableCopyright: "© Never Prepared"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.neverprepared.brainbox-runner
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: BrainboxRunner/Info.plist
+        CODE_SIGN_ENTITLEMENTS: BrainboxRunner/BrainboxRunner.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_ACCENT_COLOR_NAME: AccentColor
+        SWIFT_EMIT_LOC_STRINGS: YES
+        SWIFT_VERSION: "5.9"

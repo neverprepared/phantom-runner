@@ -1,0 +1,11 @@
+# Xcode-generated
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+build/
+*.dSYM
+*.dSYM.zip
+
+# macOS
+.DS_Store

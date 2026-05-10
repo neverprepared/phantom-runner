@@ -160,14 +160,48 @@ final class RunnerCore {
         }
     }
 
-    /// R3 stub: real Docker/UTM dispatch lands in R4–R6. Return a clean
-    /// "unsupported" result so the API isn't left holding the work item.
+    /// Dispatch a work item to the matching executor. R5 wires
+    /// session.create through DockerDriver + SessionExecutor; UTM/start/stop
+    /// kinds remain stubs until later phases.
     private func handle(work: APIClient.WorkItem) async -> APIClient.ResultPayload {
-        APIClient.ResultPayload(
-            ok: false,
-            error: "runner not yet implemented for kind: \(work.kind)",
-            data: nil
+        switch work.kind {
+        case "session.create":
+            return await handleSessionCreate(payload: work.payload)
+        default:
+            return APIClient.ResultPayload(
+                ok: false,
+                error: "runner not yet implemented for kind: \(work.kind)",
+                data: nil
+            )
+        }
+    }
+
+    private func handleSessionCreate(
+        payload: [String: AnyDecodable]
+    ) async -> APIClient.ResultPayload {
+        guard let owner else {
+            return APIClient.ResultPayload(ok: false, error: "runner state lost", data: nil)
+        }
+        guard owner.settings.dockerEnabled else {
+            return APIClient.ResultPayload(
+                ok: false,
+                error: "docker capability disabled in runner settings",
+                data: nil
+            )
+        }
+        guard let baseURL = URL(string: owner.settings.apiURL),
+              let apiKey = KeychainStore.loadAPIKey(), !apiKey.isEmpty else {
+            return APIClient.ResultPayload(
+                ok: false,
+                error: "runner missing apiURL or API key",
+                data: nil
+            )
+        }
+        let exec = SessionExecutor(
+            runnerName: owner.settings.runnerName,
+            api: APIClient(baseURL: baseURL, apiKey: apiKey)
         )
+        return await exec.execute(payload: payload)
     }
 
     // MARK: - Status

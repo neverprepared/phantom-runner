@@ -80,6 +80,51 @@ struct APIClient {
         let _: EmptyResponse = try await postJSON(path: path, body: result, timeout: 30)
     }
 
+    struct SealRequestBody: Encodable {
+        let workspace_profile: String?
+        let workspace_home: String?
+        let recipient: String
+        let timeout: Int
+    }
+
+    /// Ask the central API to seal a credential bundle for the given recipient
+    /// pubkey. Blocks until the laptop's cc poll daemon (or inline seal, if
+    /// the API is on the laptop) posts the ciphertext back. Returns the
+    /// sealed bundle bytes.
+    func sealRequest(
+        workspaceProfile: String?,
+        workspaceHome: String?,
+        recipient: String,
+        timeoutSeconds: Int = 90
+    ) async throws -> Data {
+        let url = try buildURL("/api/credentials/seal-request")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuth(&req)
+        let body = SealRequestBody(
+            workspace_profile: workspaceProfile,
+            workspace_home: workspaceHome,
+            recipient: recipient,
+            timeout: timeoutSeconds
+        )
+        req.httpBody = try JSONEncoder().encode(body)
+        let (data, resp): (Data, URLResponse)
+        do {
+            (data, resp) = try await session(timeout: TimeInterval(timeoutSeconds + 10)).data(for: req)
+        } catch {
+            throw APIError.transport(error)
+        }
+        guard let http = resp as? HTTPURLResponse else {
+            throw APIError.transport(URLError(.badServerResponse))
+        }
+        if http.statusCode == 401 { throw APIError.unauthorized }
+        guard (200..<300).contains(http.statusCode) else {
+            throw APIError.http(status: http.statusCode, body: String(data: data, encoding: .utf8) ?? "")
+        }
+        return data
+    }
+
     /// Quick reachability check — used by the Settings "Test connection" button.
     /// Hits the runners list endpoint with the configured key.
     func ping() async throws {

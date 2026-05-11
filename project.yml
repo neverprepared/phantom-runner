@@ -42,3 +42,27 @@ targets:
         ASSETCATALOG_COMPILER_ACCENT_COLOR_NAME: AccentColor
         SWIFT_EMIT_LOC_STRINGS: YES
         SWIFT_VERSION: "5.9"
+    preBuildScripts:
+      - name: Build brainbox-bundler (Go)
+        # Compiles the Go credential-sealing helper and drops the binary into
+        # the app bundle Resources/. BundleBuilder.swift locates it via
+        # Bundle.main.path(forResource:).
+        script: |
+          set -euo pipefail
+          if ! command -v go >/dev/null 2>&1; then
+            if [ -x /usr/local/go/bin/go ]; then
+              export PATH="/usr/local/go/bin:$PATH"
+            elif [ -x /opt/homebrew/bin/go ]; then
+              export PATH="/opt/homebrew/bin:$PATH"
+            else
+              echo "error: go toolchain not found in PATH" >&2
+              exit 1
+            fi
+          fi
+          RESOURCES="$BUILT_PRODUCTS_DIR/$WRAPPER_NAME/Contents/Resources"
+          mkdir -p "$RESOURCES"
+          cd "$SRCROOT/bundler"
+          GOOS=darwin go build -trimpath -ldflags="-s -w" \
+            -o "$RESOURCES/brainbox-bundler" .
+        outputFiles:
+          - $(BUILT_PRODUCTS_DIR)/$(WRAPPER_NAME)/Contents/Resources/brainbox-bundler

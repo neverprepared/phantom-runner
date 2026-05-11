@@ -125,6 +125,66 @@ struct APIClient {
         return data
     }
 
+    // MARK: - Secret authority (credential queue) endpoints
+
+    struct PendingCredentialRequest: Decodable {
+        let id: String
+        let workspace_profile: String?
+        let workspace_home: String?
+        let recipient: String
+    }
+
+    /// Long-poll for the next pending credential request when this agent
+    /// is acting as the secret authority. Returns nil on 204 (no work
+    /// within the server's poll window — call again).
+    /// `as:` identifies us so the API can touch last_seen for the
+    /// secret_authority capability.
+    func pollPendingCredentialRequest(as runnerName: String) async throws -> PendingCredentialRequest? {
+        var components = URLComponents(
+            url: try buildURL("/api/credentials/pending"),
+            resolvingAgainstBaseURL: false
+        )
+        components?.queryItems = [URLQueryItem(name: "as", value: runnerName)]
+        guard let url = components?.url else { throw APIError.invalidURL }
+
+        var req = URLRequest(url: url)
+        req.httpMethod = "GET"
+        addAuth(&req)
+        let (data, resp) = try await session(timeout: 40).data(for: req)
+        guard let http = resp as? HTTPURLResponse else {
+            throw APIError.transport(URLError(.badServerResponse))
+        }
+        if http.statusCode == 204 { return nil }
+        if http.statusCode == 401 { throw APIError.unauthorized }
+        guard (200..<300).contains(http.statusCode) else {
+            throw APIError.http(status: http.statusCode, body: String(data: data, encoding: .utf8) ?? "")
+        }
+        do {
+            return try JSONDecoder().decode(PendingCredentialRequest.self, from: data)
+        } catch {
+            throw APIError.decoding("\(error)")
+        }
+    }
+
+    /// Post sealed ciphertext back to the API to fulfill a credential
+    /// request. Body is the raw bytes.
+    func postSealedCredentials(requestID: String, sealed: Data) async throws {
+        let url = try buildURL("/api/credentials/\(percentEncoded(requestID))/sealed")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
+        addAuth(&req)
+        req.httpBody = sealed
+        let (data, resp) = try await session(timeout: 30).data(for: req)
+        guard let http = resp as? HTTPURLResponse else {
+            throw APIError.transport(URLError(.badServerResponse))
+        }
+        if http.statusCode == 401 { throw APIError.unauthorized }
+        guard (200..<300).contains(http.statusCode) else {
+            throw APIError.http(status: http.statusCode, body: String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
     /// Quick reachability check — used by the Settings "Test connection" button.
     /// Hits the runners list endpoint with the configured key.
     func ping() async throws {

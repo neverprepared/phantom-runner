@@ -96,7 +96,16 @@ struct SessionExecutor {
                 )
             }
 
-            // 6. Return SessionContext-shaped data. SessionContext is a Pydantic
+            // 6. Launch the web terminal (ttyd) so the Wails app + the
+            //    /url returned in the response actually shows something.
+            //    Detached so we don't block on it; ttyd binds 7681 and
+            //    runs until the container stops.
+            try await launchWebTerminal(
+                containerName: containerName,
+                title: "\(req.role.capitalized) - \(req.sessionName)"
+            )
+
+            // 7. Return SessionContext-shaped data. SessionContext is a Pydantic
             //    model on the Python side — the API rebuilds it via **kwargs.
             let ctx: [String: AnyEncodable] = [
                 "session_name": AnyEncodable(req.sessionName),
@@ -241,6 +250,28 @@ struct SessionExecutor {
         _ = try await SSHDriver.exec(
             host: host, user: user,
             command: "brainbox-init apply --identity /run/brainbox/identity.key --bundle /run/brainbox/bundle.age --home $HOME"
+        )
+    }
+
+    // MARK: - Web terminal
+
+    /// Launch ttyd inside the container, detached, bound to port 7681
+    /// (which the host maps to the random port we reported back).
+    /// Matches the Python lifecycle.start() invocation. Best-effort —
+    /// container is live and creds are applied; ttyd starting late is
+    /// a UX issue, not a session failure.
+    private func launchWebTerminal(containerName: String, title: String) async throws {
+        _ = try await DockerDriver.exec(
+            name: containerName,
+            cmd: [
+                "ttyd",
+                "-W",
+                "-t", "titleFixed=\(title)",
+                "-p", "7681",
+                "/home/developer/ttyd-wrapper.sh",
+            ],
+            user: "developer",
+            detach: true
         )
     }
 

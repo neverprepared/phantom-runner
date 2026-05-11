@@ -289,15 +289,14 @@ struct SessionExecutor {
             stdin: base64
         )
 
-        // 4. Docker auto-creates parent dirs for any bind mounts as root, so
-        //    reclaim ownership for `developer` before apply writes files there.
-        _ = try await DockerDriver.exec(
-            name: containerName,
-            cmd: ["sh", "-c", "chown -R developer:developer /home/developer"],
-            user: "root"
-        )
-
-        // 5. Apply — unseal and lay down credentials.
+        // 4. Apply — unseal and lay down credentials. (No blanket `chown -R`:
+        //    the brainbox image's /home/developer is already developer-owned,
+        //    and our Swift runner doesn't add cred bind mounts that would
+        //    cause Docker to auto-create root-owned parent dirs. The Python
+        //    flow runs chown because it bind-mounts the GPG agent socket;
+        //    when we add that here, do a targeted chown of the specific
+        //    subdir rather than a recursive walk of millions of files in
+        //    the brainbox image, which deadlocks for minutes.)
         _ = try await DockerDriver.exec(
             name: containerName,
             cmd: ["brainbox-init", "apply",

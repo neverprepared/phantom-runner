@@ -3,6 +3,7 @@ import SwiftUI
 
 struct MenuBarView: View {
     @EnvironmentObject var state: AppState
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         Group {
@@ -56,11 +57,26 @@ struct MenuBarView: View {
 
             Divider()
 
-            Button("Settings…") { openSettings() }
+            Button("Settings…") { openSettingsWindow() }
                 .keyboardShortcut(",")
 
             Button("Quit Runner") { NSApp.terminate(nil) }
                 .keyboardShortcut("q")
+        }
+        // First-launch flag: open settings automatically when set.
+        // Single-arg .onChange for macOS 13 compatibility.
+        .onChange(of: state.shouldOpenSettings) { shouldOpen in
+            if shouldOpen {
+                openSettingsWindow()
+                state.shouldOpenSettings = false
+            }
+        }
+        .task {
+            // onChange doesn't fire on initial value; check once on appear.
+            if state.shouldOpenSettings {
+                openSettingsWindow()
+                state.shouldOpenSettings = false
+            }
         }
     }
 
@@ -85,14 +101,16 @@ struct MenuBarView: View {
         URL(string: state.settings.apiURL)
     }
 
-    private func openSettings() {
-        let selectorName: String
-        if #available(macOS 14, *) {
-            selectorName = "showSettingsWindow:"
-        } else {
-            selectorName = "showPreferencesWindow:"
-        }
+    /// Opens the settings window via SwiftUI's openWindow action. LSUIElement
+    /// apps default to .accessory policy which keeps windows from becoming
+    /// the key window — temporarily switch to .regular so the window appears
+    /// and accepts focus. Activation policy is left at .regular while
+    /// settings is open; it'll flip back to .accessory next time the menu
+    /// bar is the only thing visible (Apple handles this transparently when
+    /// the user closes the last window).
+    private func openSettingsWindow() {
+        NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
-        NSApp.sendAction(Selector((selectorName)), to: nil, from: nil)
+        openWindow(id: "settings")
     }
 }

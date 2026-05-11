@@ -14,26 +14,27 @@ struct BrainboxRunnerApp: App {
         }
         .menuBarExtraStyle(.menu)
 
-        Settings {
+        // Window (not Settings scene): in LSUIElement / menu-bar apps the
+        // Settings selector dance (showSettingsWindow:/showPreferencesWindow:)
+        // is unreliable on macOS 13. A regular Window + openWindow(id:) is
+        // the durable pattern.
+        Window("Brainbox Runner", id: "settings") {
             SettingsView()
                 .environmentObject(state)
+                .frame(minWidth: 520, minHeight: 380)
         }
+        .windowResizability(.contentSize)
+        .defaultPosition(.center)
     }
 
-    /// Auto-open Settings on first launch (no key yet) so the user lands
-    /// directly on the Pair screen; otherwise auto-start the runner.
+    /// On first launch with no Keychain key, flag the settings window
+    /// to open. MenuBarView watches this and uses @Environment(\.openWindow)
+    /// from inside the view tree, which is the only context where SwiftUI
+    /// reliably routes window opens for LSUIElement / menu-bar apps.
     @MainActor
     private func firstLaunchSetup() async {
         if !KeychainStore.hasAPIKey() {
-            // Open Settings → Credentials. The user can click Pair…
-            let selectorName: String
-            if #available(macOS 14, *) {
-                selectorName = "showSettingsWindow:"
-            } else {
-                selectorName = "showPreferencesWindow:"
-            }
-            NSApp.activate(ignoringOtherApps: true)
-            NSApp.sendAction(Selector((selectorName)), to: nil, from: nil)
+            state.shouldOpenSettings = true
             return
         }
         await state.startRunnerIfConfigured()

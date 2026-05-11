@@ -32,6 +32,9 @@ final class AppState: ObservableObject {
     @Published var status: RunnerStatus = .disconnected
     @Published var lastError: String?
     @Published var settings: SettingsStore
+    /// Set to true to request the settings window be opened. MenuBarView
+    /// observes this and calls openWindow; it resets the flag to false.
+    @Published var shouldOpenSettings: Bool = false
     private(set) lazy var runner: RunnerCore = RunnerCore(owner: self)
 
     init() {

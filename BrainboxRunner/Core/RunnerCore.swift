@@ -48,6 +48,7 @@ final class RunnerCore {
         let caps: [String: Bool] = [
             "docker": settings.dockerEnabled,
             "utm": settings.utmEnabled,
+            "secret_authority": settings.secretAuthorityEnabled,
         ]
         let tags = settings.tags
         paused = false

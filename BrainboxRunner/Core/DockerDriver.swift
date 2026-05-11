@@ -167,15 +167,28 @@ struct DockerDriver {
         let stderrPipe = Pipe()
         proc.standardOutput = stdoutPipe
         proc.standardError = stderrPipe
-        if let stdin {
+
+        var stdinHandle: FileHandle?
+        if stdin != nil {
             let stdinPipe = Pipe()
             proc.standardInput = stdinPipe
-            stdinPipe.fileHandleForWriting.write(stdin)
-            try? stdinPipe.fileHandleForWriting.close()
+            stdinHandle = stdinPipe.fileHandleForWriting
         }
 
         log.debug("docker \((proc.arguments ?? []).joined(separator: " "), privacy: .public)")
         try proc.run()
+
+        // Write stdin AFTER proc.run() so the child can drain the pipe.
+        // For large payloads (sealed bundles run ~30MB) the default pipe
+        // buffer is ~64KB; writing before run() deadlocks. Stream from a
+        // background thread so this call doesn't block while the child reads.
+        if let stdinHandle, let stdin {
+            DispatchQueue.global(qos: .userInitiated).async {
+                stdinHandle.write(stdin)
+                try? stdinHandle.close()
+            }
+        }
+
         proc.waitUntilExit()
 
         let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()

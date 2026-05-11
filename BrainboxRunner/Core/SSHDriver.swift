@@ -87,14 +87,21 @@ enum SSHDriver {
         let stderrPipe = Pipe()
         proc.standardOutput = stdoutPipe
         proc.standardError = stderrPipe
-        if let stdin {
+        var stdinHandle: FileHandle?
+        if stdin != nil {
             let stdinPipe = Pipe()
             proc.standardInput = stdinPipe
-            stdinPipe.fileHandleForWriting.write(stdin)
-            try? stdinPipe.fileHandleForWriting.close()
+            stdinHandle = stdinPipe.fileHandleForWriting
         }
         log.debug("ssh \((proc.arguments ?? []).joined(separator: " "), privacy: .public)")
         try proc.run()
+        // Pipe-deadlock dodge: write stdin only after the child can read.
+        if let stdinHandle, let stdin {
+            DispatchQueue.global(qos: .userInitiated).async {
+                stdinHandle.write(stdin)
+                try? stdinHandle.close()
+            }
+        }
 
         let watchdog = DispatchWorkItem {
             if proc.isRunning { proc.terminate() }

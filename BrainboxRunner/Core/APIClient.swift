@@ -32,6 +32,13 @@ struct APIClient {
         let capabilities: [String: Bool]
         let tags: [String]
         let version: String
+        /// Advertised host/IP for this runner machine. Sent to the API so it
+        /// can build correct ttyd URLs for remote sessions.
+        let host: String?
+        /// Stable UUID for this machine. Allows the API to rename an existing
+        /// runner when the user changes the name in Settings instead of
+        /// creating a duplicate entry.
+        let machine_id: String?
     }
 
     struct RegisterResponse: Decodable {
@@ -78,6 +85,42 @@ struct APIClient {
     func postResult(runnerName: String, workID: String, result: ResultPayload) async throws {
         let path = "/api/runners/\(percentEncoded(runnerName))/result/\(percentEncoded(workID))"
         let _: EmptyResponse = try await postJSON(path: path, body: result, timeout: 30)
+    }
+
+    /// Post a pre-encoded JSON payload as a result. Used by ResultQueue when
+    /// retrying deferred results whose payload was serialised before the outage.
+    func postResultRaw(runnerName: String, workID: String, jsonData: Data) async throws {
+        let path = "/api/runners/\(percentEncoded(runnerName))/result/\(percentEncoded(workID))"
+        let url = try buildURL(path)
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuth(&req)
+        req.httpBody = jsonData
+        let (data, resp): (Data, URLResponse)
+        do {
+            (data, resp) = try await session(timeout: 30).data(for: req)
+        } catch {
+            throw APIError.transport(error)
+        }
+        guard let http = resp as? HTTPURLResponse else {
+            throw APIError.transport(URLError(.badServerResponse))
+        }
+        if http.statusCode == 401 { throw APIError.unauthorized }
+        guard (200..<300).contains(http.statusCode) else {
+            throw APIError.http(status: http.statusCode, body: String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
+    struct HeartbeatRequest: Encodable {
+        let in_flight: Int
+        let max_concurrent: Int
+    }
+
+    func heartbeat(runnerName: String, inFlight: Int, maxConcurrent: Int) async throws {
+        let path = "/api/runners/\(percentEncoded(runnerName))/heartbeat"
+        let body = HeartbeatRequest(in_flight: inFlight, max_concurrent: maxConcurrent)
+        let _: EmptyResponse = try await postJSON(path: path, body: body, timeout: 10)
     }
 
     struct SealRequestBody: Encodable {
@@ -183,6 +226,19 @@ struct APIClient {
         guard (200..<300).contains(http.statusCode) else {
             throw APIError.http(status: http.statusCode, body: String(data: data, encoding: .utf8) ?? "")
         }
+    }
+
+    struct EventPayload: Encodable {
+        let message: String
+        let session: String?
+    }
+
+    /// Post a status event (e.g. image pull progress) to be broadcast to SSE clients.
+    /// Failures are silently swallowed — this is best-effort telemetry.
+    func postEvent(runnerName: String, message: String, session: String? = nil) async {
+        let body = EventPayload(message: message, session: session)
+        let path = "/api/runners/\(percentEncoded(runnerName))/event"
+        let _: EmptyResponse? = try? await postJSON(path: path, body: body, timeout: 5)
     }
 
     /// Quick reachability check — used by the Settings "Test connection" button.

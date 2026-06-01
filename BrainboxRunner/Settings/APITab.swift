@@ -28,8 +28,31 @@ struct APITab: View {
                 TextField("API URL", text: $state.settings.apiURL)
                     .textFieldStyle(.roundedBorder)
                     .autocorrectionDisabled(true)
+                if isUnroutableURL(state.settings.apiURL) {
+                    Label("URL contains an unroutable host (0.0.0.0 or localhost). Update to the LAN IP of the API server.", systemImage: "exclamationmark.triangle.fill")
+                        .foregroundColor(.orange)
+                        .font(.caption)
+                }
                 TextField("Runner name", text: $state.settings.runnerName)
                     .textFieldStyle(.roundedBorder)
+                HStack(spacing: 6) {
+                    TextField(
+                        SettingsStore.detectLANIP() ?? "e.g. 192.168.1.42",
+                        text: $state.settings.runnerHost
+                    )
+                    .textFieldStyle(.roundedBorder)
+                    .autocorrectionDisabled(true)
+                    Button("Detect") {
+                        if let ip = SettingsStore.detectLANIP() {
+                            state.settings.runnerHost = ip
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+                Text("IP this Mac is reachable at from the API server. Used to build the correct ttyd URL for remote sessions. Same-host setups can leave this blank.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
 
             Section("Tags") {
@@ -100,6 +123,11 @@ struct APITab: View {
         guard !trimmed.isEmpty, !state.settings.tags.contains(trimmed) else { return }
         state.settings.tags.append(trimmed)
         newTag = ""
+    }
+
+    private func isUnroutableURL(_ raw: String) -> Bool {
+        guard let host = URLComponents(string: raw)?.host else { return false }
+        return host == "0.0.0.0" || host == "127.0.0.1" || host == "localhost"
     }
 
     private var statusColor: Color {

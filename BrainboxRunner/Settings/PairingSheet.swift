@@ -70,7 +70,14 @@ struct PairingSheet: View {
         .padding(20)
         .frame(width: 520)
         .onAppear {
-            if apiURL.isEmpty { apiURL = state.settings.apiURL }
+            if apiURL.isEmpty {
+                let stored = state.settings.apiURL
+                let host = URLComponents(string: stored)?.host ?? ""
+                let unroutable = host == "0.0.0.0" || host == "127.0.0.1" || host == "localhost"
+                if !stored.isEmpty && !unroutable {
+                    apiURL = stored
+                }
+            }
         }
     }
 
@@ -91,7 +98,9 @@ struct PairingSheet: View {
         status = .claiming
         do {
             let claimed = try await PairingClient.claim(baseURL: base, token: tok)
-            // Persist apiURL + Keychain key; suggest runner name if empty.
+            // Use the "Claim from" URL — the runner just proved it can reach
+            // the API there. The token's api_url may have been issued with an
+            // unroutable host (0.0.0.0) before the issuing side was fixed.
             state.settings.apiURL = url
             if state.settings.runnerName.isEmpty || state.settings.runnerName == Host.current().localizedName {
                 if !claimed.runnerNameSuggestion.isEmpty {

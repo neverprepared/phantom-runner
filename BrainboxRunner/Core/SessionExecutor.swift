@@ -11,6 +11,7 @@ import OSLog
 /// can land incrementally without changing this shape.
 struct SessionExecutor {
     let runnerName: String
+    let runnerHost: String?
     let api: APIClient
     let imageName: String
 
@@ -18,8 +19,9 @@ struct SessionExecutor {
     private static let webTermPort = 7681
     private static let defaultTTL = 3600
 
-    init(runnerName: String, api: APIClient, imageName: String = "brainbox") {
+    init(runnerName: String, runnerHost: String? = nil, api: APIClient, imageName: String = "brainbox") {
         self.runnerName = runnerName
+        self.runnerHost = runnerHost
         self.api = api
         self.imageName = imageName
     }
@@ -41,9 +43,12 @@ struct SessionExecutor {
             // 1. Pull the image (no-op if local). Best-effort: log and proceed
             //    if the registry isn't reachable; local cached image still works.
             do {
+                await api.postEvent(runnerName: runnerName, message: "pulling image \(imageName)…", session: req.sessionName)
                 try await DockerDriver.pull(image: imageName)
+                await api.postEvent(runnerName: runnerName, message: "image ready", session: req.sessionName)
             } catch {
                 Self.log.warning("image pull failed (continuing with local): \(String(describing: error), privacy: .public)")
+                await api.postEvent(runnerName: runnerName, message: "image pull failed, using cache", session: req.sessionName)
             }
 
             // 2. Build create args.
@@ -122,6 +127,7 @@ struct SessionExecutor {
                 "workspace_home": AnyEncodable(req.workspaceHome ?? NSNull()),
                 "delivery": AnyEncodable(req.delivery),
                 "runner_name": AnyEncodable(runnerName),
+                "runner_host": AnyEncodable(runnerHost ?? NSNull()),
             ]
             Self.log.info("session.create done: \(containerName, privacy: .public) port=\(hostPort)")
             return APIClient.ResultPayload(ok: true, error: nil, data: ctx)
@@ -179,6 +185,7 @@ struct SessionExecutor {
                 "workspace_home": AnyEncodable(req.workspaceHome ?? NSNull()),
                 "delivery": AnyEncodable(req.delivery),
                 "runner_name": AnyEncodable(runnerName),
+                "runner_host": AnyEncodable(runnerHost ?? NSNull()),
                 "vm_template": AnyEncodable(template),
                 "vm_ip": AnyEncodable(ip),
                 "mac_address": AnyEncodable(mac),

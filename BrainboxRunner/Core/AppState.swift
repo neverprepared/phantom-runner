@@ -39,9 +39,15 @@ final class AppState: ObservableObject {
 
     init() {
         self.settings = SettingsStore()
+        // Schedule startup immediately rather than waiting for the menu to open.
+        // With .menuBarExtraStyle(.menu) the content view is lazy — .task only
+        // fires on first open, not on app launch.
+        Task { @MainActor in
+            await self.startRunnerIfConfigured()
+        }
     }
 
-    /// Called once from the App's onAppear after Keychain is reachable.
+    /// Called once after Keychain is reachable. Safe to call multiple times.
     func startRunnerIfConfigured() async {
         guard !settings.apiURL.isEmpty, KeychainStore.hasAPIKey() else { return }
         await runner.start()

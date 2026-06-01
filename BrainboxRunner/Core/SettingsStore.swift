@@ -1,4 +1,5 @@
 import Foundation
+import Darwin  // getifaddrs
 
 /// UserDefaults-backed persistent settings. The API key is intentionally
 /// NOT here — it lives in the Keychain (see KeychainStore).
@@ -7,6 +8,7 @@ final class SettingsStore: ObservableObject {
     private enum Key {
         static let apiURL = "apiURL"
         static let runnerName = "runnerName"
+        static let runnerHost = "runnerHost"
         static let tags = "tags"
         static let dockerEnabled = "capabilities.docker.enabled"
         static let utmEnabled = "capabilities.utm.enabled"
@@ -14,6 +16,7 @@ final class SettingsStore: ObservableObject {
         static let maxConcurrent = "maxConcurrent"
         static let launchAtLogin = "launchAtLogin"
         static let logVerbose = "logVerbose"
+        static let machineID = "machineID"
     }
 
     @Published var apiURL: String {
@@ -21,6 +24,12 @@ final class SettingsStore: ObservableObject {
     }
     @Published var runnerName: String {
         didSet { UserDefaults.standard.set(runnerName, forKey: Key.runnerName) }
+    }
+    /// The IP or hostname this machine is reachable at from the API server's
+    /// network. Sent on register so the API can build correct ttyd URLs.
+    /// Auto-detected from the primary LAN interface on first launch; editable.
+    @Published var runnerHost: String {
+        didSet { UserDefaults.standard.set(runnerHost, forKey: Key.runnerHost) }
     }
     @Published var tags: [String] {
         didSet { UserDefaults.standard.set(tags, forKey: Key.tags) }
@@ -44,21 +53,60 @@ final class SettingsStore: ObservableObject {
         didSet { UserDefaults.standard.set(logVerbose, forKey: Key.logVerbose) }
     }
 
+    /// Stable UUID for this machine. Generated once on first launch, never changes.
+    /// Sent to the API on register so it can rename an existing runner instead of
+    /// creating a duplicate when the user changes the runner name in Settings.
+    let machineID: String
+
     init() {
         let d = UserDefaults.standard
+        // Stable machine ID — generate once, persist forever.
+        if let stored = d.string(forKey: Key.machineID), !stored.isEmpty {
+            self.machineID = stored
+        } else {
+            let id = UUID().uuidString
+            d.set(id, forKey: Key.machineID)
+            self.machineID = id
+        }
         self.apiURL = d.string(forKey: Key.apiURL) ?? "http://127.0.0.1:9999"
         self.runnerName = d.string(forKey: Key.runnerName) ?? Host.current().localizedName ?? "runner"
+        // Use stored host, or auto-detect on first launch (empty string = same-host).
+        self.runnerHost = d.string(forKey: Key.runnerHost) ?? SettingsStore.detectLANIP() ?? ""
         self.tags = (d.array(forKey: Key.tags) as? [String]) ?? []
-        // Capability detection (real probes) lives in R3; for R2 default to
-        // both on so the UI behaves sensibly when a real connection lands.
         self.dockerEnabled = d.object(forKey: Key.dockerEnabled) as? Bool ?? true
         self.utmEnabled = d.object(forKey: Key.utmEnabled) as? Bool ?? true
-        // Default off — this is the laptop's secret authority role; only the
-        // user knows whether this Mac holds plaintext credentials.
+        // Default off — secret authority means this Mac holds plaintext credentials.
         self.secretAuthorityEnabled = d.object(forKey: Key.secretAuthorityEnabled) as? Bool ?? false
         self.maxConcurrent = d.integer(forKey: Key.maxConcurrent) > 0
             ? d.integer(forKey: Key.maxConcurrent) : 1
         self.launchAtLogin = d.bool(forKey: Key.launchAtLogin)
         self.logVerbose = d.bool(forKey: Key.logVerbose)
+    }
+
+    /// Detect the primary LAN IPv4 address. Prefers en0 (Wi-Fi / Ethernet on
+    /// Apple Silicon), then the first non-loopback IPv4 interface. Returns nil
+    /// when no suitable interface is found (e.g. no network connection).
+    static func detectLANIP() -> String? {
+        var ifaddr: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&ifaddr) == 0 else { return nil }
+        defer { freeifaddrs(ifaddr) }
+
+        var candidates: [(iface: String, ip: String)] = []
+        var ptr = ifaddr
+        while let current = ptr {
+            defer { ptr = current.pointee.ifa_next }
+            guard let sa = current.pointee.ifa_addr,
+                  sa.pointee.sa_family == UInt8(AF_INET) else { continue }
+            let name = String(cString: current.pointee.ifa_name)
+            guard name != "lo0" else { continue }
+            var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+            getnameinfo(sa, socklen_t(sa.pointee.sa_len), &host, socklen_t(NI_MAXHOST),
+                        nil, 0, NI_NUMERICHOST)
+            candidates.append((name, String(cString: host)))
+        }
+        // Prefer en0 (primary interface on Mac), then en1, then anything else.
+        return candidates.first(where: { $0.iface == "en0" })?.ip
+            ?? candidates.first(where: { $0.iface.hasPrefix("en") })?.ip
+            ?? candidates.first?.ip
     }
 }

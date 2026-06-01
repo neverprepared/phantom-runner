@@ -71,7 +71,9 @@ struct DockerDriver {
             args += ["--label", "\(k)=\(v)"]
         }
         for (host, container) in portMappings {
-            args += ["-p", "127.0.0.1:\(host):\(container)"]
+            // Bind on all interfaces so the central API can reach ttyd from
+            // a remote network when the runner is not on the same host.
+            args += ["-p", "0.0.0.0:\(host):\(container)"]
         }
         for v in volumes {
             args += ["-v", "\(v.hostPath):\(v.containerPath):\(v.mode)"]

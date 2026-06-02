@@ -135,7 +135,7 @@ final class RunnerCore {
             name: name,
             capabilities: caps,
             tags: tags,
-            version: "0.1.0",
+            version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.5",
             host: host,
             machine_id: machineID
         )

@@ -93,16 +93,7 @@ struct SessionExecutor {
             // 4. Discover the host port Docker picked.
             let hostPort = (try? await DockerDriver.hostPort(name: containerName, containerPort: Self.webTermPort)) ?? 0
 
-            // 5. Credential bundle injection (bundle mode only).
-            if req.delivery == "bundle" {
-                try await injectBundle(
-                    containerName: containerName,
-                    workspaceProfile: req.workspaceProfile,
-                    workspaceHome: req.workspaceHome
-                )
-            }
-
-            // 6. Launch the web terminal (ttyd) so the Wails app + the
+            // 5. Launch the web terminal (ttyd) so the Wails app + the
             //    /url returned in the response actually shows something.
             //    Detached so we don't block on it; ttyd binds 7681 and
             //    runs until the container stops.

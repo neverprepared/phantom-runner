@@ -36,15 +36,16 @@ struct SessionExecutor {
 
     private func executeDocker(req: SessionRequest) async -> APIClient.ResultPayload {
         let containerName = "\(req.role)-\(req.sessionName)"
+        let effectiveImage = req.image ?? imageName
 
         do {
-            Self.log.info("session.create start: name=\(req.sessionName, privacy: .public) bundle=\(req.delivery == "bundle", privacy: .public)")
+            Self.log.info("session.create start: name=\(req.sessionName, privacy: .public) bundle=\(req.delivery == "bundle", privacy: .public) image=\(effectiveImage, privacy: .public)")
 
             // 1. Pull the image (no-op if local). Best-effort: log and proceed
             //    if the registry isn't reachable; local cached image still works.
             do {
-                await api.postEvent(runnerName: runnerName, message: "pulling image \(imageName)…", session: req.sessionName)
-                try await DockerDriver.pull(image: imageName)
+                await api.postEvent(runnerName: runnerName, message: "pulling image \(effectiveImage)…", session: req.sessionName)
+                try await DockerDriver.pull(image: effectiveImage)
                 await api.postEvent(runnerName: runnerName, message: "image ready", session: req.sessionName)
             } catch {
                 Self.log.warning("image pull failed (continuing with local): \(String(describing: error), privacy: .public)")
@@ -77,7 +78,7 @@ struct SessionExecutor {
 
             _ = try await DockerDriver.create(
                 name: containerName,
-                image: imageName,
+                image: effectiveImage,
                 command: ["sleep", "infinity"],
                 env: env,
                 labels: labels,
@@ -370,6 +371,7 @@ struct SessionRequest {
     let vmTemplate: String?
     let guestOS: String
     let sshUser: String?
+    let image: String?
 
     init(payload: [String: AnyDecodable]) {
         func str(_ k: String) -> String? {
@@ -393,5 +395,6 @@ struct SessionRequest {
         self.vmTemplate = str("vm_template")
         self.guestOS = str("guest_os") ?? "linux"
         self.sshUser = str("ssh_user")
+        self.image = str("image")
     }
 }

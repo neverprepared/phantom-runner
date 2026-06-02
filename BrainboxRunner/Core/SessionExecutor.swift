@@ -53,10 +53,11 @@ struct SessionExecutor {
             }
 
             // 2. Build create args.
-            let env: [String: String] = [
+            var env: [String: String] = [
                 "BRAINBOX_ROLE": req.role,
                 "OLLAMA_HOST": "http://host.docker.internal:11434",
             ]
+            env.merge(req.extraEnv) { _, new in new }
             let labels: [String: String] = [
                 "brainbox.managed": "true",
                 "brainbox.session_name": req.sessionName,
@@ -363,6 +364,7 @@ struct SessionRequest {
     let guestOS: String
     let sshUser: String?
     let image: String?
+    let extraEnv: [String: String]
 
     init(payload: [String: AnyDecodable]) {
         func str(_ k: String) -> String? {
@@ -387,5 +389,6 @@ struct SessionRequest {
         self.guestOS = str("guest_os") ?? "linux"
         self.sshUser = str("ssh_user")
         self.image = str("image")
+        self.extraEnv = (payload["extra_env"]?.value as? [String: Any])?.compactMapValues { $0 as? String } ?? [:]
     }
 }

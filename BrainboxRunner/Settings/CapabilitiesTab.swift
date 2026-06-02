@@ -17,17 +17,6 @@ struct CapabilitiesTab: View {
             }
 
             Section {
-                Toggle("This Mac holds my credentials (secret authority)",
-                       isOn: $state.settings.secretAuthorityEnabled)
-            } header: {
-                Text("Credential authority")
-            } footer: {
-                Text("Enable on the laptop where your plaintext credentials live. The agent registers the secret_authority capability so the API knows where to route credential-sealing requests. Active sealing lands in the next release — for now this just advertises.")
-                    .foregroundColor(.secondary)
-                    .font(.caption)
-            }
-
-            Section {
                 Stepper(
                     "Max concurrent sessions: \(state.settings.maxConcurrent)",
                     value: $state.settings.maxConcurrent,

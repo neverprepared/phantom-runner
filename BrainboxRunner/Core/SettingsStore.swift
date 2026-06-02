@@ -12,7 +12,6 @@ final class SettingsStore: ObservableObject {
         static let tags = "tags"
         static let dockerEnabled = "capabilities.docker.enabled"
         static let utmEnabled = "capabilities.utm.enabled"
-        static let secretAuthorityEnabled = "capabilities.secret_authority.enabled"
         static let maxConcurrent = "maxConcurrent"
         static let launchAtLogin = "launchAtLogin"
         static let logVerbose = "logVerbose"
@@ -39,9 +38,6 @@ final class SettingsStore: ObservableObject {
     }
     @Published var utmEnabled: Bool {
         didSet { UserDefaults.standard.set(utmEnabled, forKey: Key.utmEnabled) }
-    }
-    @Published var secretAuthorityEnabled: Bool {
-        didSet { UserDefaults.standard.set(secretAuthorityEnabled, forKey: Key.secretAuthorityEnabled) }
     }
     @Published var maxConcurrent: Int {
         didSet { UserDefaults.standard.set(maxConcurrent, forKey: Key.maxConcurrent) }
@@ -75,8 +71,6 @@ final class SettingsStore: ObservableObject {
         self.tags = (d.array(forKey: Key.tags) as? [String]) ?? []
         self.dockerEnabled = d.object(forKey: Key.dockerEnabled) as? Bool ?? true
         self.utmEnabled = d.object(forKey: Key.utmEnabled) as? Bool ?? true
-        // Default off — secret authority means this Mac holds plaintext credentials.
-        self.secretAuthorityEnabled = d.object(forKey: Key.secretAuthorityEnabled) as? Bool ?? false
         self.maxConcurrent = d.integer(forKey: Key.maxConcurrent) > 0
             ? d.integer(forKey: Key.maxConcurrent) : 1
         self.launchAtLogin = d.bool(forKey: Key.launchAtLogin)

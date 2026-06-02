@@ -10,7 +10,6 @@ final class RunnerCore {
 
     private var pollTask: Task<Void, Never>?
     private var heartbeatTask: Task<Void, Never>?
-    private var sealTask: Task<Void, Never>?
     private var paused: Bool = false
     private var lastError: String?
 
@@ -59,7 +58,6 @@ final class RunnerCore {
         let caps: [String: Bool] = [
             "docker": settings.dockerEnabled,
             "utm": settings.utmEnabled,
-            "secret_authority": settings.secretAuthorityEnabled,
         ]
         let tags = settings.tags
         let maxConcurrent = settings.maxConcurrent
@@ -72,21 +70,15 @@ final class RunnerCore {
         heartbeatTask = Task { [weak self] in
             await self?.heartbeatLoop(client: client, name: name, maxConcurrent: maxConcurrent)
         }
-        if settings.secretAuthorityEnabled {
-            sealTask = Task { [weak self] in
-                await self?.sealLoop(client: client, name: name)
-            }
-        }
     }
 
     func stop() async {
-        for task in [pollTask, heartbeatTask, sealTask].compactMap({ $0 }) {
+        for task in [pollTask, heartbeatTask].compactMap({ $0 }) {
             task.cancel()
             _ = await task.value
         }
         pollTask = nil
         heartbeatTask = nil
-        sealTask = nil
         inFlight = 0
         updateStatus(.disconnected, error: nil)
     }
@@ -242,33 +234,6 @@ final class RunnerCore {
                 log.warning("heartbeat failed: \(String(describing: error), privacy: .public)")
             }
             await resultQueue.drain(client: client)
-        }
-    }
-
-    // MARK: - Secret authority loop
-
-    private func sealLoop(client: APIClient, name: String) async {
-        log.info("seal loop starting (authority=\(name, privacy: .public))")
-        while !Task.isCancelled {
-            do {
-                guard let req = try await client.pollPendingCredentialRequest(as: name) else {
-                    continue
-                }
-                log.info("seal request id=\(req.id, privacy: .public) recipient=\(req.recipient.prefix(20), privacy: .public)…")
-                let sealed = try await BundleBuilder.build(
-                    workspaceProfile: req.workspace_profile,
-                    workspaceHome: req.workspace_home,
-                    recipient: req.recipient
-                )
-                try await client.postSealedCredentials(requestID: req.id, sealed: sealed)
-                log.info("seal request id=\(req.id, privacy: .public) delivered (\(sealed.count) bytes)")
-            } catch APIClient.APIError.unauthorized {
-                log.error("seal loop: unauthorized — stopping")
-                return
-            } catch {
-                log.warning("seal loop error: \(String(describing: error), privacy: .public)")
-                try? await Task.sleep(nanoseconds: 2_000_000_000)
-            }
         }
     }
 

@@ -2,7 +2,7 @@ import Foundation
 import OSLog
 
 /// Thin shell-out around `ssh` and `scp`. Used by UTM session execution to
-/// push the credential bundle into the guest and run brainbox-init there.
+/// interact with the guest VM over SSH.
 /// Assumes key-based auth — the runner's developer key (or whatever the
 /// template VM trusts) must already be configured.
 enum SSHDriver {

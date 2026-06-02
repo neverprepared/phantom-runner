@@ -10,7 +10,7 @@ settings:
   base:
     SWIFT_VERSION: "5.9"
     PRODUCT_NAME: BrainboxRunner            # filename on disk; user-visible name lives in CFBundleDisplayName
-    MARKETING_VERSION: "0.1.3"
+    MARKETING_VERSION: "0.1.7"
     CURRENT_PROJECT_VERSION: "1"
     DEVELOPMENT_TEAM: ""        # set via export DEVELOPMENT_TEAM=... before xcodegen
     CODE_SIGN_STYLE: Automatic

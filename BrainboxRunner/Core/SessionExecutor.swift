@@ -100,6 +100,7 @@ struct SessionExecutor {
             //    runs until the container stops.
             try await launchWebTerminal(
                 containerName: containerName,
+                sessionName: req.sessionName,
                 title: "\(req.role.capitalized) - \(req.sessionName)"
             )
 
@@ -260,7 +261,7 @@ struct SessionExecutor {
     /// Matches the Python lifecycle.start() invocation. Best-effort —
     /// container is live and creds are applied; ttyd starting late is
     /// a UX issue, not a session failure.
-    private func launchWebTerminal(containerName: String, title: String) async throws {
+    private func launchWebTerminal(containerName: String, sessionName: String, title: String) async throws {
         _ = try await DockerDriver.exec(
             name: containerName,
             cmd: [
@@ -268,6 +269,7 @@ struct SessionExecutor {
                 "-W",
                 "-t", "titleFixed=\(title)",
                 "-p", "7681",
+                "--base-path", "/t/\(sessionName)",
                 "/home/developer/ttyd-wrapper.sh",
             ],
             user: "developer",

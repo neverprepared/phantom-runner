@@ -12,22 +12,23 @@ struct CapabilitiesTab: View {
                 Text("Compute capabilities")
             } footer: {
                 Text("Enabled capabilities are advertised at registration so the API knows what work this agent can pick up.")
-                    .foregroundColor(.secondary)
-                    .font(.caption)
             }
 
             Section {
-                Stepper(
-                    "Max concurrent sessions: \(state.settings.maxConcurrent)",
-                    value: $state.settings.maxConcurrent,
-                    in: 1...8
-                )
+                HStack(spacing: 8) {
+                    Stepper(value: $state.settings.maxConcurrent, in: 1...15) {
+                        Text("\(state.settings.maxConcurrent)")
+                            .monospacedDigit()
+                            .frame(minWidth: 24, alignment: .trailing)
+                    }
+                    Text("Max concurrent sessions")
+                }
+            } header: {
+                Text("Concurrency")
             } footer: {
-                Text("Default is 1 (serial). Higher values land with the concurrency rework.")
-                    .foregroundColor(.secondary)
-                    .font(.caption)
+                Text("Default is 1 (serial). Higher values allow parallel session provisioning.")
             }
         }
-        .padding()
+        .formStyle(.grouped)
     }
 }

@@ -13,18 +13,19 @@ struct GeneralTab: View {
                     Text(err).foregroundColor(.red).font(.caption)
                 }
             }
-            Section("Logging") {
+            Section {
                 Toggle("Verbose log output", isOn: $state.settings.logVerbose)
+            } header: {
+                Text("Logging")
+            } footer: {
                 Text("Logs to OSLog under com.neverprepared.brainbox-runner — view with the Console app or `log stream`.")
-                    .foregroundColor(.secondary)
-                    .font(.caption)
             }
             Section("About") {
                 LabeledContent("Version", value: appVersion)
                 LabeledContent("Bundle", value: Bundle.main.bundleIdentifier ?? "unknown")
             }
         }
-        .padding()
+        .formStyle(.grouped)
     }
 
     private var launchAtLoginBinding: Binding<Bool> {

@@ -21,7 +21,6 @@ struct BrainboxRunnerApp: App {
         Window("Brainbox Runner", id: "settings") {
             SettingsView()
                 .environmentObject(state)
-                .frame(minWidth: 520, minHeight: 380)
         }
         .windowResizability(.contentSize)
         .defaultPosition(.center)

@@ -5,6 +5,7 @@ struct APITab: View {
     @State private var newTag = ""
     @State private var testing = false
     @State private var testResult: TestResult?
+    @State private var hostText: String = ""
 
     private enum TestResult { case success, failure(String) }
 
@@ -38,17 +39,27 @@ struct APITab: View {
                 HStack(spacing: 6) {
                     TextField(
                         SettingsStore.detectLANIP() ?? "e.g. 192.168.1.42",
-                        text: $state.settings.runnerHost
+                        text: $hostText
                     )
                     .textFieldStyle(.roundedBorder)
                     .autocorrectionDisabled(true)
-                    Button("Detect") {
+                    .onChange(of: hostText) { _ in state.settings.runnerHost = hostText }
+                    .onAppear { hostText = state.settings.runnerHost }
+                    Button("LAN") {
                         if let ip = SettingsStore.detectLANIP() {
-                            state.settings.runnerHost = ip
+                            hostText = ip
                         }
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
+                    if let tsIP = SettingsStore.detectTailscaleIP() {
+                        Button("Tailscale") {
+                            hostText = tsIP
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .tint(.blue)
+                    }
                 }
                 Text("IP this Mac is reachable at from the API server. Used to build the correct ttyd URL for remote sessions. Same-host setups can leave this blank.")
                     .font(.caption)
@@ -103,7 +114,7 @@ struct APITab: View {
                 }
             }
         }
-        .padding()
+        .formStyle(.grouped)
     }
 
     private func runTest() async {

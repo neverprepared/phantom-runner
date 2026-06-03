@@ -14,7 +14,7 @@ struct SettingsView: View {
             GeneralTab()
                 .tabItem { Label("General", systemImage: "gearshape") }
         }
-        .frame(width: 480, height: 360)
+        .frame(width: 600, height: 460)
         .environmentObject(state)
     }
 }

@@ -103,4 +103,31 @@ final class SettingsStore: ObservableObject {
             ?? candidates.first(where: { $0.iface.hasPrefix("en") })?.ip
             ?? candidates.first?.ip
     }
+
+    /// Detect the Tailscale IPv4 address if Tailscale is running. Tailscale
+    /// assigns addresses in the 100.64.0.0/10 CGNAT range on a utun interface.
+    static func detectTailscaleIP() -> String? {
+        var ifaddr: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&ifaddr) == 0 else { return nil }
+        defer { freeifaddrs(ifaddr) }
+
+        var ptr = ifaddr
+        while let current = ptr {
+            defer { ptr = current.pointee.ifa_next }
+            guard let sa = current.pointee.ifa_addr,
+                  sa.pointee.sa_family == UInt8(AF_INET) else { continue }
+            let name = String(cString: current.pointee.ifa_name)
+            guard name.hasPrefix("utun") else { continue }
+            var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+            getnameinfo(sa, socklen_t(sa.pointee.sa_len), &host, socklen_t(NI_MAXHOST),
+                        nil, 0, NI_NUMERICHOST)
+            let ip = String(cString: host)
+            // 100.64.0.0/10 covers 100.64.x.x – 100.127.x.x
+            let parts = ip.split(separator: ".").compactMap { Int($0) }
+            if parts.count == 4, parts[0] == 100, parts[1] >= 64, parts[1] <= 127 {
+                return ip
+            }
+        }
+        return nil
+    }
 }

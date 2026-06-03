@@ -37,7 +37,7 @@ struct CredentialsTab: View {
                     .font(.caption)
             }
         }
-        .padding()
+        .formStyle(.grouped)
         .sheet(isPresented: $showingPairing) {
             PairingSheet().environmentObject(state)
         }

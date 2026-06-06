@@ -39,6 +39,9 @@ struct APIClient {
         /// runner when the user changes the name in Settings instead of
         /// creating a duplicate entry.
         let machine_id: String?
+        /// Ollama port advertised when capabilities["ollama"] is true. The API
+        /// uses this to add the runner to its Ollama instance pool.
+        let ollama_port: Int?
     }
 
     struct RegisterResponse: Decodable {

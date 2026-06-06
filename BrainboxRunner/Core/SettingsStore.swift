@@ -12,6 +12,7 @@ final class SettingsStore: ObservableObject {
         static let tags = "tags"
         static let dockerEnabled = "capabilities.docker.enabled"
         static let utmEnabled = "capabilities.utm.enabled"
+        static let ollamaEnabled = "capabilities.ollama.enabled"
         static let maxConcurrent = "maxConcurrent"
         static let launchAtLogin = "launchAtLogin"
         static let logVerbose = "logVerbose"
@@ -38,6 +39,9 @@ final class SettingsStore: ObservableObject {
     }
     @Published var utmEnabled: Bool {
         didSet { UserDefaults.standard.set(utmEnabled, forKey: Key.utmEnabled) }
+    }
+    @Published var ollamaEnabled: Bool {
+        didSet { UserDefaults.standard.set(ollamaEnabled, forKey: Key.ollamaEnabled) }
     }
     @Published var maxConcurrent: Int {
         didSet { UserDefaults.standard.set(maxConcurrent, forKey: Key.maxConcurrent) }
@@ -71,6 +75,7 @@ final class SettingsStore: ObservableObject {
         self.tags = (d.array(forKey: Key.tags) as? [String]) ?? []
         self.dockerEnabled = d.object(forKey: Key.dockerEnabled) as? Bool ?? true
         self.utmEnabled = d.object(forKey: Key.utmEnabled) as? Bool ?? true
+        self.ollamaEnabled = d.object(forKey: Key.ollamaEnabled) as? Bool ?? true
         self.maxConcurrent = d.integer(forKey: Key.maxConcurrent) > 0
             ? d.integer(forKey: Key.maxConcurrent) : 1
         self.launchAtLogin = d.bool(forKey: Key.launchAtLogin)
@@ -102,6 +107,23 @@ final class SettingsStore: ObservableObject {
         return candidates.first(where: { $0.iface == "en0" })?.ip
             ?? candidates.first(where: { $0.iface.hasPrefix("en") })?.ip
             ?? candidates.first?.ip
+    }
+
+    /// Probe the local Ollama HTTP server via the runner's advertised host IP.
+    /// Returns the port (11434) if reachable, nil if Ollama is bound to
+    /// localhost-only or not running. Probing via the host IP (not 127.0.0.1)
+    /// ensures the API server can actually reach it from a remote machine.
+    static func detectOllamaPort(host: String) async -> Int? {
+        guard !host.isEmpty else { return nil }
+        let urlString = "http://\(host):11434/"
+        guard let url = URL(string: urlString) else { return nil }
+        var req = URLRequest(url: url, timeoutInterval: 2)
+        req.httpMethod = "GET"
+        do {
+            let (_, response) = try await URLSession.shared.data(for: req)
+            if (response as? HTTPURLResponse)?.statusCode == 200 { return 11434 }
+        } catch {}
+        return nil
     }
 
     /// Detect the Tailscale IPv4 address if Tailscale is running. Tailscale

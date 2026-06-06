@@ -55,17 +55,28 @@ final class RunnerCore {
         let client = APIClient(baseURL: baseURL, apiKey: apiKey)
         let name = settings.runnerName.isEmpty ? "runner" : settings.runnerName
         let machineID = settings.machineID
+        let host = settings.runnerHost.isEmpty ? nil : settings.runnerHost
+        let tags = settings.tags
+        let maxConcurrent = settings.maxConcurrent
+
+        // Probe Ollama on the advertised host IP so we only advertise the
+        // capability when the API server can actually reach it (i.e. Ollama
+        // is bound to 0.0.0.0, not just localhost).
+        let ollamaPort: Int?
+        if settings.ollamaEnabled, let h = host {
+            ollamaPort = await SettingsStore.detectOllamaPort(host: h)
+        } else {
+            ollamaPort = nil
+        }
         let caps: [String: Bool] = [
             "docker": settings.dockerEnabled,
             "utm": settings.utmEnabled,
+            "ollama": ollamaPort != nil,
         ]
-        let tags = settings.tags
-        let maxConcurrent = settings.maxConcurrent
-        let host = settings.runnerHost.isEmpty ? nil : settings.runnerHost
         paused = false
 
         pollTask = Task { [weak self] in
-            await self?.loop(client: client, name: name, machineID: machineID, caps: caps, tags: tags, host: host, maxConcurrent: maxConcurrent)
+            await self?.loop(client: client, name: name, machineID: machineID, caps: caps, tags: tags, host: host, maxConcurrent: maxConcurrent, ollamaPort: ollamaPort)
         }
         heartbeatTask = Task { [weak self] in
             await self?.heartbeatLoop(client: client, name: name, maxConcurrent: maxConcurrent)
@@ -120,7 +131,8 @@ final class RunnerCore {
         caps: [String: Bool],
         tags: [String],
         host: String?,
-        maxConcurrent: Int
+        maxConcurrent: Int,
+        ollamaPort: Int? = nil
     ) async {
         // Phase 1: register, with retry on transport failure.
         let register = APIClient.RegisterRequest(
@@ -129,7 +141,8 @@ final class RunnerCore {
             tags: tags,
             version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.7",
             host: host,
-            machine_id: machineID
+            machine_id: machineID,
+            ollama_port: ollamaPort
         )
         while !Task.isCancelled {
             do {

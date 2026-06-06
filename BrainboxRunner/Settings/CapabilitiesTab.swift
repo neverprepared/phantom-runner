@@ -8,10 +8,11 @@ struct CapabilitiesTab: View {
             Section {
                 Toggle("docker (containers)", isOn: $state.settings.dockerEnabled)
                 Toggle("utm (virtual machines)", isOn: $state.settings.utmEnabled)
+                Toggle("ollama (local LLM inference)", isOn: $state.settings.ollamaEnabled)
             } header: {
                 Text("Compute capabilities")
             } footer: {
-                Text("Enabled capabilities are advertised at registration so the API knows what work this agent can pick up.")
+                Text("Enabled capabilities are advertised at registration so the API knows what work this agent can pick up. Ollama is only advertised when it is reachable on this machine's LAN IP — set OLLAMA_HOST=0.0.0.0 before starting Ollama.")
             }
 
             Section {

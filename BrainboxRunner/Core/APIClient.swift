@@ -55,22 +55,63 @@ struct APIClient {
         try await postJSON(path: "/api/runners/register", body: req, timeout: 10)
     }
 
-    struct RunnerLatestResponse: Decodable {
-        let version: String?
-        let tag: String?
-        let asset_id: Int?
-        let asset_name: String?
-        let published_at: String?
-        let notes: String?
+    // MARK: - GitHub release check (public repo, no auth needed)
+
+    private static let githubRepo = "neverprepared/phantom-ink"
+    private static let runnerTagPrefix = "runner/v"
+
+    struct LatestRelease {
+        let version: String
+        let downloadURL: URL
+        let notes: String
     }
 
-    func runnerLatest() async throws -> RunnerLatestResponse {
-        try await getJSON(path: "/api/runner/latest", timeout: 15)
+    private struct GitHubAsset: Decodable {
+        let name: String
+        let browser_download_url: String
     }
 
-    /// Download a release asset via the brainbox proxy. Returns raw DMG bytes.
-    func runnerAsset(assetID: Int) async throws -> Data {
-        try await getData(path: "/api/runner/asset/\(assetID)", timeout: 300)
+    private struct GitHubRelease: Decodable {
+        let tag_name: String
+        let body: String?
+        let assets: [GitHubAsset]
+    }
+
+    /// Fetch the latest BrainboxRunner release directly from the GitHub API.
+    func latestRunnerRelease() async throws -> LatestRelease? {
+        guard let url = URL(string: "https://api.github.com/repos/\(Self.githubRepo)/releases") else {
+            throw APIError.invalidURL
+        }
+        var req = URLRequest(url: url)
+        req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        req.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
+        req.timeoutInterval = 15
+        let (data, resp): (Data, URLResponse)
+        do {
+            (data, resp) = try await URLSession.shared.data(for: req)
+        } catch {
+            throw APIError.transport(error)
+        }
+        guard let http = resp as? HTTPURLResponse else {
+            throw APIError.transport(URLError(.badServerResponse))
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            throw APIError.http(status: http.statusCode, body: String(data: data, encoding: .utf8) ?? "")
+        }
+        let releases: [GitHubRelease]
+        do {
+            releases = try JSONDecoder().decode([GitHubRelease].self, from: data)
+        } catch {
+            throw APIError.decoding("\(error)")
+        }
+        for release in releases {
+            guard release.tag_name.hasPrefix(Self.runnerTagPrefix) else { continue }
+            let version = String(release.tag_name.dropFirst(Self.runnerTagPrefix.count))
+            guard let dmg = release.assets.first(where: { $0.name.hasSuffix(".dmg") }),
+                  let downloadURL = URL(string: dmg.browser_download_url) else { continue }
+            return LatestRelease(version: version, downloadURL: downloadURL, notes: release.body ?? "")
+        }
+        return nil
     }
 
     struct WorkItem: Decodable {
@@ -184,11 +225,11 @@ struct APIClient {
         let url = try buildURL(path)
         var req = URLRequest(url: url)
         req.httpMethod = "GET"
+        req.timeoutInterval = timeout
         addAuth(&req)
-        let s = session(timeout: timeout)  // retain for duration of await
         let (data, resp): (Data, URLResponse)
         do {
-            (data, resp) = try await s.data(for: req)
+            (data, resp) = try await URLSession.shared.data(for: req)
         } catch {
             throw APIError.transport(error)
         }
@@ -204,28 +245,6 @@ struct APIClient {
         } catch {
             throw APIError.decoding("\(error)")
         }
-    }
-
-    func getData(path: String, timeout: TimeInterval) async throws -> Data {
-        let url = try buildURL(path)
-        var req = URLRequest(url: url)
-        req.httpMethod = "GET"
-        addAuth(&req)
-        let s = session(timeout: timeout)  // retain for duration of await
-        let (data, resp): (Data, URLResponse)
-        do {
-            (data, resp) = try await s.data(for: req)
-        } catch {
-            throw APIError.transport(error)
-        }
-        guard let http = resp as? HTTPURLResponse else {
-            throw APIError.transport(URLError(.badServerResponse))
-        }
-        if http.statusCode == 401 { throw APIError.unauthorized }
-        guard (200..<300).contains(http.statusCode) else {
-            throw APIError.http(status: http.statusCode, body: "")
-        }
-        return data
     }
 
     private func postJSON<Body: Encodable, Resp: Decodable>(

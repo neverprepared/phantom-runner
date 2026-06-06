@@ -44,11 +44,11 @@ struct UpdateRow: View {
         switch state.updater.state {
         case .idle, .upToDate, .error:
             Button("Check Now") {
-                Task { await state.updater.check() }
+                Task.detached { @MainActor [state] in await state.updater.check() }
             }
-        case .available(_, let assetID, _):
+        case .available(_, let downloadURL, _):
             Button("Install & Restart") {
-                Task { await state.updater.installAndRestart(assetID: assetID) }
+                Task.detached { @MainActor [state] in await state.updater.installAndRestart(downloadURL: downloadURL) }
             }
             .buttonStyle(.borderedProminent)
         case .checking, .downloading:

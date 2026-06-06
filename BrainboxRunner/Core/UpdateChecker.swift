@@ -26,7 +26,7 @@ final class UpdateChecker: ObservableObject {
         case idle
         case checking
         case upToDate
-        case available(version: String, assetID: Int, notes: String)
+        case available(version: String, downloadURL: URL, notes: String)
         case downloading
         case error(String)
     }
@@ -40,7 +40,7 @@ final class UpdateChecker: ObservableObject {
         self.client = client
         periodicTask?.cancel()
         if autoUpdate {
-            periodicTask = Task { [weak self] in
+            periodicTask = Task.detached { [weak self] in
                 // Check on startup after a short delay (let registration settle).
                 try? await Task.sleep(for: .seconds(10))
                 await self?.check()
@@ -62,15 +62,15 @@ final class UpdateChecker: ObservableObject {
         guard let client else { return }
         state = .checking
         do {
-            let latest = try await client.runnerLatest()
-            guard let remoteVersion = latest.version, let assetID = latest.asset_id else {
+            let latest = try await client.latestRunnerRelease()
+            guard let latest else {
                 state = .upToDate
                 return
             }
             let current = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
-            if isNewer(remoteVersion, than: current) {
-                state = .available(version: remoteVersion, assetID: assetID, notes: latest.notes ?? "")
-                log.info("Update available: \(remoteVersion, privacy: .public)")
+            if isNewer(latest.version, than: current) {
+                state = .available(version: latest.version, downloadURL: latest.downloadURL, notes: latest.notes)
+                log.info("Update available: \(latest.version, privacy: .public)")
             } else {
                 state = .upToDate
             }
@@ -80,12 +80,13 @@ final class UpdateChecker: ObservableObject {
         }
     }
 
-    func installAndRestart(assetID: Int) async {
-        guard let client else { return }
+    func installAndRestart(downloadURL: URL) async {
         state = .downloading
         do {
-            log.info("Downloading update asset \(assetID, privacy: .public)")
-            let data = try await client.runnerAsset(assetID: assetID)
+            log.info("Downloading update from \(downloadURL.absoluteString, privacy: .public)")
+            var req = URLRequest(url: downloadURL)
+            req.timeoutInterval = 300
+            let (data, _) = try await URLSession.shared.data(for: req)
             try await applyUpdate(dmgData: data)
         } catch {
             state = .error(error.localizedDescription)

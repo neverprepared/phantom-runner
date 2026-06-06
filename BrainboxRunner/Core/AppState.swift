@@ -36,12 +36,10 @@ final class AppState: ObservableObject {
     /// observes this and calls openWindow; it resets the flag to false.
     @Published var shouldOpenSettings: Bool = false
     private(set) lazy var runner: RunnerCore = RunnerCore(owner: self)
+    let updater: UpdateChecker = UpdateChecker()
 
     init() {
         self.settings = SettingsStore()
-        // Schedule startup immediately rather than waiting for the menu to open.
-        // With .menuBarExtraStyle(.menu) the content view is lazy — .task only
-        // fires on first open, not on app launch.
         Task { @MainActor in
             await self.startRunnerIfConfigured()
         }
@@ -51,11 +49,19 @@ final class AppState: ObservableObject {
     func startRunnerIfConfigured() async {
         guard !settings.apiURL.isEmpty, KeychainStore.hasAPIKey() else { return }
         await runner.start()
+        if let url = URL(string: settings.apiURL), let key = KeychainStore.loadAPIKey() {
+            let client = APIClient(baseURL: url, apiKey: key)
+            updater.configure(client: client, autoUpdate: settings.autoUpdate)
+        }
     }
 
     /// Called when the user saves new URL / name / capabilities — restart so
     /// the registration picks up the change.
     func reloadRunner() async {
         await runner.restart()
+        if let url = URL(string: settings.apiURL), let key = KeychainStore.loadAPIKey() {
+            let client = APIClient(baseURL: url, apiKey: key)
+            updater.configure(client: client, autoUpdate: settings.autoUpdate)
+        }
     }
 }

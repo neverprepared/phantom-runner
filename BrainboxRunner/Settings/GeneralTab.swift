@@ -20,6 +20,14 @@ struct GeneralTab: View {
             } footer: {
                 Text("Logs to OSLog under com.neverprepared.brainbox-runner — view with the Console app or `log stream`.")
             }
+            Section {
+                Toggle("Auto-check for updates", isOn: $state.settings.autoUpdate)
+                UpdateRow()
+            } header: {
+                Text("Updates")
+            } footer: {
+                Text("Checks for new BrainboxRunner releases via the connected brainbox API. Install replaces the running app and restarts automatically.")
+            }
             Section("About") {
                 LabeledContent("Version", value: appVersion)
                 LabeledContent("Bundle", value: Bundle.main.bundleIdentifier ?? "unknown")

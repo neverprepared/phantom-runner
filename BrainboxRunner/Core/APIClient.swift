@@ -53,6 +53,24 @@ struct APIClient {
         try await postJSON(path: "/api/runners/register", body: req, timeout: 10)
     }
 
+    struct RunnerLatestResponse: Decodable {
+        let version: String?
+        let tag: String?
+        let asset_id: Int?
+        let asset_name: String?
+        let published_at: String?
+        let notes: String?
+    }
+
+    func runnerLatest() async throws -> RunnerLatestResponse {
+        try await getJSON(path: "/api/runner/latest", timeout: 15)
+    }
+
+    /// Download a release asset via the brainbox proxy. Returns raw DMG bytes.
+    func runnerAsset(assetID: Int) async throws -> Data {
+        try await getData(path: "/api/runner/asset/\(assetID)", timeout: 300)
+    }
+
     struct WorkItem: Decodable {
         let id: String
         let kind: String
@@ -159,6 +177,52 @@ struct APIClient {
     // MARK: - Helpers
 
     private struct EmptyResponse: Decodable {}
+
+    func getJSON<Resp: Decodable>(path: String, timeout: TimeInterval) async throws -> Resp {
+        let url = try buildURL(path)
+        var req = URLRequest(url: url)
+        req.httpMethod = "GET"
+        addAuth(&req)
+        let (data, resp): (Data, URLResponse)
+        do {
+            (data, resp) = try await session(timeout: timeout).data(for: req)
+        } catch {
+            throw APIError.transport(error)
+        }
+        guard let http = resp as? HTTPURLResponse else {
+            throw APIError.transport(URLError(.badServerResponse))
+        }
+        if http.statusCode == 401 { throw APIError.unauthorized }
+        guard (200..<300).contains(http.statusCode) else {
+            throw APIError.http(status: http.statusCode, body: String(data: data, encoding: .utf8) ?? "")
+        }
+        do {
+            return try JSONDecoder().decode(Resp.self, from: data)
+        } catch {
+            throw APIError.decoding("\(error)")
+        }
+    }
+
+    func getData(path: String, timeout: TimeInterval) async throws -> Data {
+        let url = try buildURL(path)
+        var req = URLRequest(url: url)
+        req.httpMethod = "GET"
+        addAuth(&req)
+        let (data, resp): (Data, URLResponse)
+        do {
+            (data, resp) = try await session(timeout: timeout).data(for: req)
+        } catch {
+            throw APIError.transport(error)
+        }
+        guard let http = resp as? HTTPURLResponse else {
+            throw APIError.transport(URLError(.badServerResponse))
+        }
+        if http.statusCode == 401 { throw APIError.unauthorized }
+        guard (200..<300).contains(http.statusCode) else {
+            throw APIError.http(status: http.statusCode, body: "")
+        }
+        return data
+    }
 
     private func postJSON<Body: Encodable, Resp: Decodable>(
         path: String, body: Body, timeout: TimeInterval

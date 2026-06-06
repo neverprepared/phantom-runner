@@ -13,6 +13,7 @@ final class SettingsStore: ObservableObject {
         static let dockerEnabled = "capabilities.docker.enabled"
         static let utmEnabled = "capabilities.utm.enabled"
         static let ollamaEnabled = "capabilities.ollama.enabled"
+        static let autoUpdate = "autoUpdate"
         static let maxConcurrent = "maxConcurrent"
         static let launchAtLogin = "launchAtLogin"
         static let logVerbose = "logVerbose"
@@ -42,6 +43,9 @@ final class SettingsStore: ObservableObject {
     }
     @Published var ollamaEnabled: Bool {
         didSet { UserDefaults.standard.set(ollamaEnabled, forKey: Key.ollamaEnabled) }
+    }
+    @Published var autoUpdate: Bool {
+        didSet { UserDefaults.standard.set(autoUpdate, forKey: Key.autoUpdate) }
     }
     @Published var maxConcurrent: Int {
         didSet { UserDefaults.standard.set(maxConcurrent, forKey: Key.maxConcurrent) }
@@ -76,6 +80,7 @@ final class SettingsStore: ObservableObject {
         self.dockerEnabled = d.object(forKey: Key.dockerEnabled) as? Bool ?? true
         self.utmEnabled = d.object(forKey: Key.utmEnabled) as? Bool ?? true
         self.ollamaEnabled = d.object(forKey: Key.ollamaEnabled) as? Bool ?? true
+        self.autoUpdate = d.object(forKey: Key.autoUpdate) as? Bool ?? true
         self.maxConcurrent = d.integer(forKey: Key.maxConcurrent) > 0
             ? d.integer(forKey: Key.maxConcurrent) : 1
         self.launchAtLogin = d.bool(forKey: Key.launchAtLogin)

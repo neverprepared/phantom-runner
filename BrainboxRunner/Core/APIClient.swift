@@ -7,7 +7,7 @@ struct APIClient {
     let baseURL: URL
     let apiKey: String
 
-    enum APIError: Error, CustomStringConvertible {
+    enum APIError: Error, CustomStringConvertible, LocalizedError {
         case invalidURL
         case unauthorized
         case http(status: Int, body: String)
@@ -19,10 +19,12 @@ struct APIClient {
             case .invalidURL: return "invalid URL"
             case .unauthorized: return "unauthorized (check API key)"
             case .http(let s, let b): return "HTTP \(s): \(b.prefix(200))"
-            case .decoding(let m): return "decode: \(m)"
+            case .decoding(let m): return "decode error: \(m)"
             case .transport(let e): return "transport: \(e.localizedDescription)"
             }
         }
+
+        var errorDescription: String? { description }
     }
 
     // MARK: - Endpoints
@@ -183,9 +185,10 @@ struct APIClient {
         var req = URLRequest(url: url)
         req.httpMethod = "GET"
         addAuth(&req)
+        let s = session(timeout: timeout)  // retain for duration of await
         let (data, resp): (Data, URLResponse)
         do {
-            (data, resp) = try await session(timeout: timeout).data(for: req)
+            (data, resp) = try await s.data(for: req)
         } catch {
             throw APIError.transport(error)
         }
@@ -208,9 +211,10 @@ struct APIClient {
         var req = URLRequest(url: url)
         req.httpMethod = "GET"
         addAuth(&req)
+        let s = session(timeout: timeout)  // retain for duration of await
         let (data, resp): (Data, URLResponse)
         do {
-            (data, resp) = try await session(timeout: timeout).data(for: req)
+            (data, resp) = try await s.data(for: req)
         } catch {
             throw APIError.transport(error)
         }
@@ -270,10 +274,12 @@ struct APIClient {
     }
 
     private func session(timeout: TimeInterval) -> URLSession {
-        let config = URLSessionConfiguration.ephemeral
+        let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = timeout
         config.timeoutIntervalForResource = timeout + 5
         config.waitsForConnectivity = false
+        // Note: the caller must retain the returned session for the duration of
+        // the request — URLSession cancels pending tasks on deallocation.
         return URLSession(configuration: config)
     }
 

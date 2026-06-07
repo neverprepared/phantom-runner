@@ -43,7 +43,10 @@ struct APIClient {
         let machine_id: String?
         /// Ollama port advertised when capabilities["ollama"] is true. The API
         /// uses this to add the runner to its Ollama instance pool.
-        let ollama_port: Int?
+        /// Port the runner's HTTPS proxy listens on. Brainbox connects to
+        /// `https://<host>:<ollama_proxy_port>` and the runner forwards to
+        /// its localhost Ollama. Replaces the previous raw `ollama_port`.
+        let ollama_proxy_port: Int?
     }
 
     struct RegisterResponse: Decodable {

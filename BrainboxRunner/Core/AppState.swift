@@ -37,6 +37,7 @@ final class AppState: ObservableObject {
     @Published var shouldOpenSettings: Bool = false
     private(set) lazy var runner: RunnerCore = RunnerCore(owner: self)
     let updater: UpdateChecker = UpdateChecker()
+    let ollamaProxy: OllamaProxy = OllamaProxy()
 
     init() {
         self.settings = SettingsStore()

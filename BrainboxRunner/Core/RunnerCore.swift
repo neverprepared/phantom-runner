@@ -59,24 +59,28 @@ final class RunnerCore {
         let tags = settings.tags
         let maxConcurrent = settings.maxConcurrent
 
-        // Probe Ollama on the advertised host IP so we only advertise the
-        // capability when the API server can actually reach it (i.e. Ollama
-        // is bound to 0.0.0.0, not just localhost).
-        let ollamaPort: Int?
-        if settings.ollamaEnabled, let h = host {
-            ollamaPort = await SettingsStore.detectOllamaPort(host: h)
+        // Start the local Ollama HTTPS proxy if (a) the user enabled the
+        // Ollama capability AND (b) localhost Ollama is reachable. The proxy
+        // advertises a port on the runner's LAN IP that brainbox connects to;
+        // it forwards requests to 127.0.0.1:11434 and authenticates with the
+        // shared API key.
+        var ollamaProxyPort: Int? = nil
+        if settings.ollamaEnabled, let _ = await SettingsStore.detectLocalOllamaPort() {
+            let configured = UInt16(settings.ollamaProxyPort)
+            owner.ollamaProxy.start(port: configured, apiKey: apiKey, ollamaPort: 11434)
+            ollamaProxyPort = Int(configured)
         } else {
-            ollamaPort = nil
+            owner.ollamaProxy.stop()
         }
         let caps: [String: Bool] = [
             "docker": settings.dockerEnabled,
             "utm": settings.utmEnabled,
-            "ollama": ollamaPort != nil,
+            "ollama": ollamaProxyPort != nil,
         ]
         paused = false
 
         pollTask = Task { [weak self] in
-            await self?.loop(client: client, name: name, machineID: machineID, caps: caps, tags: tags, host: host, maxConcurrent: maxConcurrent, ollamaPort: ollamaPort)
+            await self?.loop(client: client, name: name, machineID: machineID, caps: caps, tags: tags, host: host, maxConcurrent: maxConcurrent, ollamaProxyPort: ollamaProxyPort)
         }
         heartbeatTask = Task { [weak self] in
             await self?.heartbeatLoop(client: client, name: name, maxConcurrent: maxConcurrent)
@@ -91,6 +95,7 @@ final class RunnerCore {
         pollTask = nil
         heartbeatTask = nil
         inFlight = 0
+        owner?.ollamaProxy.stop()
         updateStatus(.disconnected, error: nil)
     }
 
@@ -132,17 +137,17 @@ final class RunnerCore {
         tags: [String],
         host: String?,
         maxConcurrent: Int,
-        ollamaPort: Int? = nil
+        ollamaProxyPort: Int? = nil
     ) async {
         // Phase 1: register, with retry on transport failure.
         let register = APIClient.RegisterRequest(
             name: name,
             capabilities: caps,
             tags: tags,
-            version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.7",
+            version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.12",
             host: host,
             machine_id: machineID,
-            ollama_port: ollamaPort
+            ollama_proxy_port: ollamaProxyPort
         )
         while !Task.isCancelled {
             do {

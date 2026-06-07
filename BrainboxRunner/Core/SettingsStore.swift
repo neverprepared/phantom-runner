@@ -18,6 +18,7 @@ final class SettingsStore: ObservableObject {
         static let launchAtLogin = "launchAtLogin"
         static let logVerbose = "logVerbose"
         static let machineID = "machineID"
+        static let ollamaProxyPort = "ollamaProxyPort"
     }
 
     @Published var apiURL: String {
@@ -56,6 +57,12 @@ final class SettingsStore: ObservableObject {
     @Published var logVerbose: Bool {
         didSet { UserDefaults.standard.set(logVerbose, forKey: Key.logVerbose) }
     }
+    /// Port the local Ollama HTTPS proxy listens on. Brainbox connects to
+    /// `https://<runnerHost>:<ollamaProxyPort>` and the runner forwards to
+    /// 127.0.0.1:11434.
+    @Published var ollamaProxyPort: Int {
+        didSet { UserDefaults.standard.set(ollamaProxyPort, forKey: Key.ollamaProxyPort) }
+    }
 
     /// Stable UUID for this machine. Generated once on first launch, never changes.
     /// Sent to the API on register so it can rename an existing runner instead of
@@ -85,6 +92,8 @@ final class SettingsStore: ObservableObject {
             ? d.integer(forKey: Key.maxConcurrent) : 1
         self.launchAtLogin = d.bool(forKey: Key.launchAtLogin)
         self.logVerbose = d.bool(forKey: Key.logVerbose)
+        self.ollamaProxyPort = d.integer(forKey: Key.ollamaProxyPort) > 0
+            ? d.integer(forKey: Key.ollamaProxyPort) : 11435
     }
 
     /// Detect the primary LAN IPv4 address. Prefers en0 (Wi-Fi / Ethernet on
@@ -114,14 +123,10 @@ final class SettingsStore: ObservableObject {
             ?? candidates.first?.ip
     }
 
-    /// Probe the local Ollama HTTP server via the runner's advertised host IP.
-    /// Returns the port (11434) if reachable, nil if Ollama is bound to
-    /// localhost-only or not running. Probing via the host IP (not 127.0.0.1)
-    /// ensures the API server can actually reach it from a remote machine.
-    static func detectOllamaPort(host: String) async -> Int? {
-        guard !host.isEmpty else { return nil }
-        let urlString = "http://\(host):11434/"
-        guard let url = URL(string: urlString) else { return nil }
+    /// Probe Ollama on localhost — the proxy forwards there. Returns the
+    /// detected port (11434) when reachable, nil otherwise.
+    static func detectLocalOllamaPort() async -> Int? {
+        guard let url = URL(string: "http://127.0.0.1:11434/") else { return nil }
         var req = URLRequest(url: url, timeoutInterval: 2)
         req.httpMethod = "GET"
         do {

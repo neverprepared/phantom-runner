@@ -15,7 +15,9 @@
 		3D13CF81EA88A2BB11B7B8CF /* UTMDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3A246AD11A400CC25A53D3B /* UTMDriver.swift */; };
 		4C85333264C276F3942FBBFD /* UpdateRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 535702CEBEB32B69C19CB6C4 /* UpdateRow.swift */; };
 		4CC2925BC34F83F10177706B /* BrainboxRunnerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7933890370CA640A6AA6064F /* BrainboxRunnerApp.swift */; };
+		4D2714DA5AAD44E24E087B2E /* Envelope.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7660EEBCC042C876EF4B4602 /* Envelope.swift */; };
 		5A88A7E35510C6777A9CF0CB /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59D00EE7A7D6EF4EB2323136 /* KeychainStore.swift */; };
+		629997400B4CA88F06DA2177 /* EnvelopeQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00BA82D894DE3FE091155322 /* EnvelopeQueue.swift */; };
 		6405E560C6567A3A5AA00E0E /* UpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D5911779CD52A96182D0CC7 /* UpdateChecker.swift */; };
 		64BA44A6807A3476CF284C50 /* OllamaProxy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EFCBACB40D0F4803FA89E21 /* OllamaProxy.swift */; };
 		65E3E524AC8E93E454C5E9DC /* GeneralTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = F086A7A37B58DFF46E9C5EA7 /* GeneralTab.swift */; };
@@ -34,6 +36,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		00BA82D894DE3FE091155322 /* EnvelopeQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvelopeQueue.swift; sourceTree = "<group>"; };
 		0757B08D76E36F77E3549A66 /* PairingClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingClient.swift; sourceTree = "<group>"; };
 		1B73148F93D766B5072CFFAC /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1CF739ED95538D21742A5C07 /* SessionExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionExecutor.swift; sourceTree = "<group>"; };
@@ -45,6 +48,7 @@
 		535702CEBEB32B69C19CB6C4 /* UpdateRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateRow.swift; sourceTree = "<group>"; };
 		59D00EE7A7D6EF4EB2323136 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		714A9795824794549026F9FE /* BrainboxRunner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BrainboxRunner.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7660EEBCC042C876EF4B4602 /* Envelope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Envelope.swift; sourceTree = "<group>"; };
 		7933890370CA640A6AA6064F /* BrainboxRunnerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrainboxRunnerApp.swift; sourceTree = "<group>"; };
 		8533B3BDCCB861A68C9F3745 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		8D5911779CD52A96182D0CC7 /* UpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateChecker.swift; sourceTree = "<group>"; };
@@ -79,6 +83,8 @@
 				CDA8C9406482E6EBF2C0D682 /* AppleScriptRunner.swift */,
 				AB7E6477BF6AA5CD2AE3F533 /* AppState.swift */,
 				F14B05128CFCC3468235E098 /* DockerDriver.swift */,
+				7660EEBCC042C876EF4B4602 /* Envelope.swift */,
+				00BA82D894DE3FE091155322 /* EnvelopeQueue.swift */,
 				59D00EE7A7D6EF4EB2323136 /* KeychainStore.swift */,
 				4EFCBACB40D0F4803FA89E21 /* OllamaProxy.swift */,
 				0757B08D76E36F77E3549A66 /* PairingClient.swift */,
@@ -208,6 +214,8 @@
 				6FA4E55A593A193AF2EDFE92 /* CapabilitiesTab.swift in Sources */,
 				FB6FB7DA4A9C608107009899 /* CredentialsTab.swift in Sources */,
 				34835E9A21EAA7756A0C8082 /* DockerDriver.swift in Sources */,
+				4D2714DA5AAD44E24E087B2E /* Envelope.swift in Sources */,
+				629997400B4CA88F06DA2177 /* EnvelopeQueue.swift in Sources */,
 				65E3E524AC8E93E454C5E9DC /* GeneralTab.swift in Sources */,
 				5A88A7E35510C6777A9CF0CB /* KeychainStore.swift in Sources */,
 				CF6DE7EE73F07B99EE08B939 /* MenuBarView.swift in Sources */,
@@ -279,7 +287,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 0.1.13;
+				MARKETING_VERSION = 0.1.14;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = BrainboxRunner;
@@ -386,7 +394,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 0.1.13;
+				MARKETING_VERSION = 0.1.14;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

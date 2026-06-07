@@ -21,6 +21,10 @@ final class RunnerCore {
     /// was unreachable. Drained on reconnect and on each heartbeat tick.
     private let resultQueue = ResultQueue()
 
+    /// Durable queue for cross-machine agent-event-bus envelopes. Same retry
+    /// pattern as ResultQueue but ships to /api/agent_events.
+    private let envelopeQueue = EnvelopeQueue()
+
     init(owner: AppState) {
         self.owner = owner
     }
@@ -144,7 +148,7 @@ final class RunnerCore {
             name: name,
             capabilities: caps,
             tags: tags,
-            version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.13",
+            version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.14",
             host: host,
             machine_id: machineID,
             ollama_proxy_port: ollamaProxyPort
@@ -154,8 +158,9 @@ final class RunnerCore {
                 _ = try await client.register(register)
                 updateStatus(.connected, error: nil)
                 log.info("registered as \(name, privacy: .public)")
-                // Drain results queued during the last outage
+                // Drain results AND envelopes queued during the last outage
                 await resultQueue.drain(client: client)
+                await envelopeQueue.drain(client: client)
                 break
             } catch APIClient.APIError.unauthorized {
                 updateStatus(.disconnected, error: "unauthorized")
@@ -190,6 +195,16 @@ final class RunnerCore {
                 inFlight += 1
                 updateStatus(inFlight >= maxConcurrent ? .busy : .connected, error: nil)
 
+                // Bus: work received -> active. Title comes from kind so the UI
+                // shows something meaningful even before the executor finishes.
+                let workStartMs = nowMillis()
+                await envelopeQueue.append(envelopeForWork(
+                    name: name, work: work, status: "active",
+                    type: "runner.work.running", startAt: workStartMs, endAt: nil,
+                    extraMeta: ["in_flight": .of(Int64(self.inFlight))]
+                ))
+                await envelopeQueue.drain(client: client)
+
                 // Unstructured task — don't await it, so the poll loop
                 // continues immediately and can pick up more work.
                 Task { [weak self, name] in
@@ -215,6 +230,23 @@ final class RunnerCore {
                         }
                     }
 
+                    // Bus: work done -> done|failed. Carries exit/error so the
+                    // attention aggregator can surface terminal failures.
+                    let envStatus = result.ok ? "done" : "failed"
+                    let envType   = result.ok ? "runner.work.done" : "runner.work.failed"
+                    let endMs = await self.nowMillisAsync()
+                    var meta: [String: AnyCodableValue] = [:]
+                    if let err = result.error, !err.isEmpty {
+                        meta["error"] = .of(err)
+                    }
+                    let env = await self.envelopeForWorkAsync(
+                        name: name, work: work, status: envStatus,
+                        type: envType, startAt: workStartMs, endAt: endMs,
+                        extraMeta: meta
+                    )
+                    await self.envelopeQueue.append(env)
+                    await self.envelopeQueue.drain(client: client)
+
                     self.inFlight -= 1
                     if self.inFlight == 0 && !self.paused {
                         self.updateStatus(.connected, error: nil)
@@ -236,8 +268,9 @@ final class RunnerCore {
 
     // MARK: - Heartbeat loop
 
-    /// Sends a heartbeat every 30s with current load metrics, and drains
-    /// any queued results whose retry window has elapsed.
+    /// Sends a heartbeat every 30s with current load metrics, drains any
+    /// queued results, and emits a runner.heartbeat envelope so the bus
+    /// reflects runner liveness.
     private func heartbeatLoop(client: APIClient, name: String, maxConcurrent: Int) async {
         while !Task.isCancelled {
             try? await Task.sleep(nanoseconds: 30_000_000_000)
@@ -252,7 +285,94 @@ final class RunnerCore {
                 log.warning("heartbeat failed: \(String(describing: error), privacy: .public)")
             }
             await resultQueue.drain(client: client)
+
+            // Bus: runner.heartbeat (upsert in place; same id every tick).
+            let now = nowMillis()
+            let env = Envelope(
+                id: "runner:\(name)",
+                kind: "event",
+                title: "Runner \(name)",
+                source: envelopeSource(name: name),
+                type: "runner.heartbeat",
+                status: "active",
+                subtitle: "in_flight \(inFlight)/\(maxConcurrent)",
+                start_at: now,
+                tags: ["runner", "heartbeat"],
+                metadata: [
+                    "in_flight": .of(Int64(inFlight)),
+                    "max_concurrent": .of(Int64(maxConcurrent)),
+                ]
+            )
+            await envelopeQueue.append(env)
+            await envelopeQueue.drain(client: client)
         }
+    }
+
+    // MARK: - Envelope helpers
+
+    /// Producer identifier baked into every envelope this runner emits.
+    private func envelopeSource(name: String) -> String {
+        "runner:\(name)"
+    }
+
+    /// Current time in epoch milliseconds. Wrapped so call sites stay short.
+    private func nowMillis() -> Int64 {
+        Int64(Date().timeIntervalSince1970 * 1000)
+    }
+
+    /// nowMillis variant safe to call from arbitrary actor contexts via
+    /// `await self.nowMillisAsync()`. Same value, just bridged through the
+    /// actor isolation.
+    private func nowMillisAsync() async -> Int64 { nowMillis() }
+
+    /// Build the lifecycle envelope for a runner work item. Stable id so the
+    /// "running" envelope and the "done/failed" envelope upsert the same row.
+    private func envelopeForWork(
+        name: String,
+        work: APIClient.WorkItem,
+        status: String,
+        type: String,
+        startAt: Int64?,
+        endAt: Int64?,
+        extraMeta: [String: AnyCodableValue]
+    ) -> Envelope {
+        var meta: [String: AnyCodableValue] = [
+            "kind":         .of(work.kind),
+            "work_id":      .of(work.id),
+            "runner":       .of(name),
+        ]
+        for (k, v) in extraMeta { meta[k] = v }
+        return Envelope(
+            id: "runner-work:\(name):\(work.id)",
+            kind: "event",
+            title: "\(work.kind) (\(name))",
+            source: envelopeSource(name: name),
+            type: type,
+            status: status,
+            subtitle: work.id,
+            start_at: startAt,
+            end_at: endAt,
+            tags: ["runner", "work"],
+            metadata: meta
+        )
+    }
+
+    /// async wrapper so the unstructured Task inside the poll loop can
+    /// invoke envelopeForWork while staying main-actor isolated.
+    private func envelopeForWorkAsync(
+        name: String,
+        work: APIClient.WorkItem,
+        status: String,
+        type: String,
+        startAt: Int64?,
+        endAt: Int64?,
+        extraMeta: [String: AnyCodableValue]
+    ) async -> Envelope {
+        envelopeForWork(
+            name: name, work: work, status: status,
+            type: type, startAt: startAt, endAt: endAt,
+            extraMeta: extraMeta
+        )
     }
 
     /// Dispatch a work item to the matching executor.

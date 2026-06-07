@@ -203,6 +203,45 @@ struct APIClient {
         let _: EmptyResponse? = try? await postJSON(path: path, body: body, timeout: 5)
     }
 
+    // MARK: - Agent event bus
+
+    /// POST a batch of pre-encoded envelope JSON to brainbox /api/agent_events.
+    /// Each entry must already be a valid JSON object matching the envelope
+    /// schema. Brainbox dedupes by envelope.id, so at-least-once is safe.
+    func postEnvelopeBatch(_ envelopes: [Data]) async throws {
+        if envelopes.isEmpty { return }
+        let url = try buildURL("/api/agent_events")
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuth(&req)
+
+        // Manually assemble {"events":[<env>,<env>,...]} so we don't re-decode
+        // every envelope just to re-encode it.
+        var body = Data()
+        body.append(contentsOf: "{\"events\":[".utf8)
+        for (i, env) in envelopes.enumerated() {
+            if i > 0 { body.append(0x2C) } // ','
+            body.append(env)
+        }
+        body.append(contentsOf: "]}".utf8)
+        req.httpBody = body
+
+        let (data, resp): (Data, URLResponse)
+        do {
+            (data, resp) = try await session(timeout: 15).data(for: req)
+        } catch {
+            throw APIError.transport(error)
+        }
+        guard let http = resp as? HTTPURLResponse else {
+            throw APIError.transport(URLError(.badServerResponse))
+        }
+        if http.statusCode == 401 { throw APIError.unauthorized }
+        guard (200..<300).contains(http.statusCode) else {
+            throw APIError.http(status: http.statusCode, body: String(data: data, encoding: .utf8) ?? "")
+        }
+    }
+
     /// Quick reachability check — used by the Settings "Test connection" button.
     /// Hits the runners list endpoint with the configured key.
     func ping() async throws {

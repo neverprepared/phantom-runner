@@ -58,13 +58,14 @@ final class OllamaProxy: ObservableObject {
                               userInfo: [NSLocalizedDescriptionKey: "invalid port"])
             }
             let l = try NWListener(using: params, on: nwPort)
-            l.newConnectionHandler = { [weak self] conn in
-                guard let self else { conn.cancel(); return }
-                Task.detached { [weak self] in
-                    guard let self else { conn.cancel(); return }
-                    let key = await self.apiKey
-                    let upstream = await self.upstreamPort
-                    await OllamaProxy.handleConnection(conn, apiKey: key, ollamaPort: upstream)
+            // Capture by value so the connection handler doesn't need to
+            // hop back to the MainActor on every new connection (which
+            // delays conn.start() and stalls the TLS handshake).
+            let capturedKey = apiKey
+            let capturedUpstream = ollamaPort
+            l.newConnectionHandler = { conn in
+                Task.detached {
+                    await OllamaProxy.handleConnection(conn, apiKey: capturedKey, ollamaPort: capturedUpstream)
                 }
             }
             l.stateUpdateHandler = { [weak self] s in

@@ -1,0 +1,174 @@
+name: Runner Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+env:
+  RUNNER_DIR: .
+  SCHEME: BrainboxRunner
+  PROJECT: BrainboxRunner.xcodeproj
+  ARCHIVE_PATH: build/BrainboxRunner.xcarchive
+  EXPORT_PATH: build/export
+  DMG_PATH: build/BrainboxRunner.dmg
+  APP_NAME: BrainboxRunner.app
+
+jobs:
+  release:
+    name: Build, sign, notarize, package
+    runs-on: macos-15
+    permissions:
+      contents: write    # GitHub Release upload + Cask commit
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main      # need branch history for the Cask sha256 commit
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ${{ env.RUNNER_DIR }}
+        run: xcodegen generate
+
+      # ── Signing ──────────────────────────────────────────────────────────
+
+      - name: Import Developer ID certificate
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          KEYCHAIN_PWD: ${{ secrets.KEYCHAIN_PWD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/signing.keychain-db
+
+          security create-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
+
+          echo "$MACOS_CERTIFICATE" | base64 --decode > $RUNNER_TEMP/certificate.p12
+          security import "$RUNNER_TEMP/certificate.p12" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$MACOS_CERTIFICATE_PWD" \
+            -T /usr/bin/codesign
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -s \
+            -k "$KEYCHAIN_PWD" \
+            "$KEYCHAIN_PATH"
+
+          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain
+
+      # ── Archive ──────────────────────────────────────────────────────────
+
+      - name: Write ExportOptions.plist
+        working-directory: ${{ env.RUNNER_DIR }}
+        run: |
+          mkdir -p build
+          cat > build/ExportOptions.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>developer-id</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>signingCertificate</key>
+            <string>${{ secrets.MACOS_IDENTITY }}</string>
+            <key>teamID</key>
+            <string>${{ secrets.APPLE_TEAM_ID }}</string>
+          </dict>
+          </plist>
+          PLIST
+
+      - name: Archive
+        working-directory: ${{ env.RUNNER_DIR }}
+        run: |
+          xcodebuild archive \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination "generic/platform=macOS" \
+            -archivePath "$ARCHIVE_PATH" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="${{ secrets.MACOS_IDENTITY }}" \
+            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
+            PROVISIONING_PROFILE_SPECIFIER=""
+
+      - name: Export archive
+        working-directory: ${{ env.RUNNER_DIR }}
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$ARCHIVE_PATH" \
+            -exportPath "$EXPORT_PATH" \
+            -exportOptionsPlist build/ExportOptions.plist
+
+      - name: Re-sign with entitlements
+        working-directory: ${{ env.RUNNER_DIR }}
+        run: |
+          echo "=== Entitlements file ==="
+          cat BrainboxRunner/BrainboxRunner.entitlements
+          codesign --force --options runtime \
+            --entitlements BrainboxRunner/BrainboxRunner.entitlements \
+            --sign "${{ secrets.MACOS_IDENTITY }}" \
+            "$EXPORT_PATH/$APP_NAME"
+          codesign --verify --deep --strict "$EXPORT_PATH/$APP_NAME"
+
+      - name: Verify entitlements embedded
+        working-directory: ${{ env.RUNNER_DIR }}
+        run: |
+          ENTITLEMENTS=$(codesign -d --entitlements :- "$EXPORT_PATH/$APP_NAME" 2>&1)
+          echo "$ENTITLEMENTS"
+          # The runner needs apple-events automation (UTM AppleScript driver)
+          # and explicitly no sandbox (Docker socket + subprocess access).
+          if echo "$ENTITLEMENTS" | grep -q "automation.apple-events"; then
+            echo "Entitlements OK"
+          else
+            echo "ERROR: automation.apple-events entitlement missing!"
+            exit 1
+          fi
+
+      # ── Notarization ─────────────────────────────────────────────────────
+
+      - name: Notarize
+        working-directory: ${{ env.RUNNER_DIR }}
+        run: |
+          ditto -c -k --keepParent \
+            "$EXPORT_PATH/$APP_NAME" \
+            build/BrainboxRunner-notarize.zip
+
+          xcrun notarytool submit build/BrainboxRunner-notarize.zip \
+            --apple-id "${{ secrets.APPLE_ID }}" \
+            --password "${{ secrets.APPLE_APP_PASSWORD }}" \
+            --team-id "${{ secrets.APPLE_TEAM_ID }}" \
+            --wait
+
+      - name: Staple notarization ticket
+        working-directory: ${{ env.RUNNER_DIR }}
+        run: xcrun stapler staple "$EXPORT_PATH/$APP_NAME"
+
+      # ── DMG ──────────────────────────────────────────────────────────────
+
+      - name: Create DMG
+        working-directory: ${{ env.RUNNER_DIR }}
+        run: |
+          hdiutil create \
+            -volname "Brainbox Runner" \
+            -srcfolder "$EXPORT_PATH/$APP_NAME" \
+            -ov \
+            -format UDZO \
+            "$DMG_PATH"
+
+      # ── Release ──────────────────────────────────────────────────────────
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.RUNNER_DIR }}/${{ env.DMG_PATH }}
+          generate_release_notes: true
+          name: Brainbox Runner ${{ github.ref_name }}
+

@@ -35,12 +35,9 @@ credentials need an authorising agent to seal them. That's by design.
 
 ## Install
 
-```
-brew install --cask neverprepared/ink-bunny/brainbox-runner
-```
-
-Or download the latest DMG from the
-[Releases](https://github.com/neverprepared/phantom-ink/releases) page.
+Download the latest signed, notarized DMG from the
+[Releases](https://github.com/neverprepared/phantom-runner/releases) page,
+open it, and drag **Brainbox Runner** to Applications.
 
 ## First-run setup
 

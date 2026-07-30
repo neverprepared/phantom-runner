@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # One-shot loader for the GitHub repo secrets required by
-# .github/workflows/runner-release.yml. Fill in the values below, then run:
+# .github/workflows/release.yml. Fill in the values below, then run:
 #
-#   bash .github/scripts/setup-runner-release-secrets.sh
+#   bash .github/scripts/setup-release-secrets.sh
 #
 # Re-run safely — `gh secret set` upserts. Requires `gh auth login` first with
 # admin:repo scope.
 
 set -euo pipefail
 
-REPO="neverprepared/phantom-ink"
+REPO="neverprepared/phantom-runner"
 
 # ── 1. Developer ID Application certificate ─────────────────────────────────
 # Apple Developer → Certificates → Developer ID Application → Create.
@@ -76,11 +76,11 @@ gh secret list --repo "$REPO"
 
 echo
 echo "Done. To re-run the release after secrets are set:"
-echo "  git tag -d runner/v0.1.0 && \\"
-echo "  git push https://github.com/$REPO.git --delete runner/v0.1.0 && \\"
-echo "  git tag -a runner/v0.1.0 -m 'Brainbox Runner v0.1.0 (re-tag)' && \\"
-echo "  git push https://github.com/$REPO.git runner/v0.1.0"
+echo "  git tag -d v0.1.0 && \\"
+echo "  git push https://github.com/$REPO.git --delete v0.1.0 && \\"
+echo "  git tag -a v0.1.0 -m 'Brainbox Runner v0.1.0 (re-tag)' && \\"
+echo "  git push https://github.com/$REPO.git v0.1.0"
 echo
 echo "Or just bump the version (less destructive):"
-echo "  git tag -a runner/v0.1.1 -m 'Brainbox Runner v0.1.1' && \\"
-echo "  git push https://github.com/$REPO.git runner/v0.1.1"
+echo "  git tag -a v0.1.1 -m 'Brainbox Runner v0.1.1' && \\"
+echo "  git push https://github.com/$REPO.git v0.1.1"

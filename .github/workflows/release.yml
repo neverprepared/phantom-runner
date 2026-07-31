@@ -136,15 +136,22 @@ jobs:
 
       - name: Notarize
         working-directory: ${{ env.RUNNER_DIR }}
+        env:
+          # Pass secrets as env vars (not inlined into the script) so a special
+          # char in a value can't break the shell — and secrets stay out of the
+          # rendered command line.
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           ditto -c -k --keepParent \
             "$EXPORT_PATH/$APP_NAME" \
             build/BrainboxRunner-notarize.zip
 
           xcrun notarytool submit build/BrainboxRunner-notarize.zip \
-            --apple-id "${{ secrets.APPLE_ID }}" \
-            --password "${{ secrets.APPLE_APP_PASSWORD }}" \
-            --team-id "${{ secrets.APPLE_TEAM_ID }}" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
             --wait
 
       - name: Staple notarization ticket

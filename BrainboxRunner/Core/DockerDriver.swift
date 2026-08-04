@@ -140,17 +140,56 @@ struct DockerDriver {
         return Int(trimmed)
     }
 
+    // MARK: - Compose (integrations)
+
+    /// `docker compose -p <project> -f <dir>/docker-compose.yml up -d`. Runs with
+    /// the integration dir as cwd so a sibling `.env` auto-loads, and passes
+    /// `env` through so `${VAR}` references in the compose interpolate. Detached.
+    @discardableResult
+    static func composeUp(project: String, dir: URL, env: [String: String]) async throws -> Output {
+        let file = dir.appendingPathComponent("docker-compose.yml").path
+        return try await run(
+            ["compose", "-p", project, "-f", file, "up", "-d", "--remove-orphans"],
+            expectSuccess: true, cwd: dir, extraEnv: env
+        )
+    }
+
+    /// `docker compose -p <project> -f <file> down`. Idempotent — a project that
+    /// isn't up still exits 0.
+    @discardableResult
+    static func composeDown(project: String, dir: URL) async throws -> Output {
+        let file = dir.appendingPathComponent("docker-compose.yml").path
+        return try await run(
+            ["compose", "-p", project, "-f", file, "down"],
+            expectSuccess: true, cwd: dir
+        )
+    }
+
+    /// `docker compose -p <project> -f <file> ps --format json --all` — per-service
+    /// status as JSON. Non-fatal (`expectSuccess: false`) so an absent project
+    /// yields empty output rather than throwing.
+    static func composeStatus(project: String, dir: URL) async throws -> Output {
+        let file = dir.appendingPathComponent("docker-compose.yml").path
+        return try await run(
+            ["compose", "-p", project, "-f", file, "ps", "--format", "json", "--all"],
+            expectSuccess: false, cwd: dir
+        )
+    }
+
     // MARK: - Process plumbing
 
     @discardableResult
     private static func run(
         _ args: [String],
         stdin: Data? = nil,
-        expectSuccess: Bool
+        expectSuccess: Bool,
+        cwd: URL? = nil,
+        extraEnv: [String: String] = [:]
     ) async throws -> Output {
         guard let bin = dockerBinary() else { throw DockerError.binaryNotFound }
         let proc = Process()
         proc.executableURL = bin
+        if let cwd { proc.currentDirectoryURL = cwd }
         // If bin is /usr/bin/env, prepend "docker" so env resolves it via PATH.
         if bin.lastPathComponent == "env" {
             proc.arguments = ["docker"] + args
@@ -163,6 +202,9 @@ struct DockerDriver {
         if let path = env["PATH"], !path.contains("/Applications/Docker.app/Contents/Resources/bin") {
             env["PATH"] = path + ":/Applications/Docker.app/Contents/Resources/bin"
         }
+        // Caller-supplied env (e.g. an integration's `${VAR}` values for compose
+        // interpolation) wins over the inherited environment.
+        for (k, v) in extraEnv { env[k] = v }
         proc.environment = env
 
         let stdoutPipe = Pipe()

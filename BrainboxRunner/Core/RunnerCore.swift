@@ -148,7 +148,7 @@ final class RunnerCore {
             name: name,
             capabilities: caps,
             tags: tags,
-            version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.14",
+            version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.15",
             host: host,
             machine_id: machineID,
             ollama_proxy_port: ollamaProxyPort

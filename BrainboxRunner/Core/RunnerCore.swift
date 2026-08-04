@@ -388,6 +388,12 @@ final class RunnerCore {
             return await handleSessionExec(payload: work.payload)
         case "session.query":
             return await handleSessionQuery(payload: work.payload)
+        case "integration.up":
+            return await handleIntegrationUp(payload: work.payload)
+        case "integration.down":
+            return await handleIntegrationDown(payload: work.payload)
+        case "integration.status":
+            return await handleIntegrationStatus(payload: work.payload)
         default:
             return APIClient.ResultPayload(
                 ok: false,
@@ -540,6 +546,110 @@ final class RunnerCore {
             api: APIClient(baseURL: baseURL, apiKey: apiKey)
         )
         return await exec.execute(payload: payload)
+    }
+
+    // MARK: - Integrations (compose work-kinds)
+
+    // ADR-003: the control plane places self-contained compose stacks
+    // (integrations, e.g. kroki) on a chosen node. The runner is a dumb executor:
+    // materialize the compose YAML shipped in the payload, then up/down/status via
+    // `docker compose -p <name>`. Desired state lives in the control plane; there
+    // is no reconcile here. Operator-gated path — never on the sandboxed agent
+    // surface.
+
+    /// Per-integration working dir `~/.phantom/integrations/<name>/`, created on
+    /// demand. Holds the materialized `docker-compose.yml` (+ optional `.env`).
+    private func integrationDir(_ name: String) throws -> URL {
+        let dir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".phantom/integrations/\(name)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    /// Integration name doubles as a filesystem segment and a compose project
+    /// name, so reject anything that could escape the path or inject flags. The
+    /// control plane is operator-gated; this is defense in depth.
+    private func isValidIntegrationName(_ s: String) -> Bool {
+        s.range(of: "^[a-z0-9][a-z0-9_-]*$", options: .regularExpression) != nil
+    }
+
+    /// Extract a `{String: String}` env map from the payload's `env` object.
+    private func stringEnv(_ payload: [String: AnyDecodable]) -> [String: String] {
+        guard let raw = payload["env"]?.value as? [String: Any] else { return [:] }
+        return raw.compactMapValues { $0 as? String }
+    }
+
+    private func handleIntegrationUp(payload: [String: AnyDecodable]) async -> APIClient.ResultPayload {
+        guard owner?.settings.dockerEnabled == true else {
+            return APIClient.ResultPayload(ok: false, error: "docker capability disabled in runner settings", data: nil)
+        }
+        guard let name = payload["name"]?.value as? String, isValidIntegrationName(name) else {
+            return APIClient.ResultPayload(ok: false, error: "valid integration name required ([a-z0-9][a-z0-9_-]*)", data: nil)
+        }
+        guard let yaml = payload["compose_yaml"]?.value as? String, !yaml.isEmpty else {
+            return APIClient.ResultPayload(ok: false, error: "compose_yaml required", data: nil)
+        }
+        let env = stringEnv(payload)
+        do {
+            let dir = try integrationDir(name)
+            try yaml.write(to: dir.appendingPathComponent("docker-compose.yml"), atomically: true, encoding: .utf8)
+            let envFile = dir.appendingPathComponent(".env")
+            if env.isEmpty {
+                try? FileManager.default.removeItem(at: envFile)
+            } else {
+                let text = env.map { "\($0.key)=\($0.value)" }.sorted().joined(separator: "\n") + "\n"
+                try text.write(to: envFile, atomically: true, encoding: .utf8)
+            }
+            let out = try await DockerDriver.composeUp(project: name, dir: dir, env: env)
+            log.info("integration.up done: \(name, privacy: .public)")
+            return APIClient.ResultPayload(ok: true, error: nil, data: ["output": AnyEncodable(out.stdout + out.stderr)])
+        } catch {
+            log.warning("integration.up failed: \(String(describing: error), privacy: .public)")
+            return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
+        }
+    }
+
+    private func handleIntegrationDown(payload: [String: AnyDecodable]) async -> APIClient.ResultPayload {
+        guard let name = payload["name"]?.value as? String, isValidIntegrationName(name) else {
+            return APIClient.ResultPayload(ok: false, error: "valid integration name required", data: nil)
+        }
+        do {
+            let dir = try integrationDir(name)
+            let composeFile = dir.appendingPathComponent("docker-compose.yml")
+            guard FileManager.default.fileExists(atPath: composeFile.path) else {
+                // Never placed here / already cleaned — desired "off" already met.
+                return APIClient.ResultPayload(ok: true, error: nil, data: ["output": AnyEncodable("no compose file; nothing to stop")])
+            }
+            let out = try await DockerDriver.composeDown(project: name, dir: dir)
+            log.info("integration.down done: \(name, privacy: .public)")
+            return APIClient.ResultPayload(ok: true, error: nil, data: ["output": AnyEncodable(out.stdout + out.stderr)])
+        } catch {
+            log.warning("integration.down failed: \(String(describing: error), privacy: .public)")
+            return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
+        }
+    }
+
+    private func handleIntegrationStatus(payload: [String: AnyDecodable]) async -> APIClient.ResultPayload {
+        guard let name = payload["name"]?.value as? String, isValidIntegrationName(name) else {
+            return APIClient.ResultPayload(ok: false, error: "valid integration name required", data: nil)
+        }
+        do {
+            let dir = try integrationDir(name)
+            let composeFile = dir.appendingPathComponent("docker-compose.yml")
+            guard FileManager.default.fileExists(atPath: composeFile.path) else {
+                return APIClient.ResultPayload(ok: true, error: nil, data: ["running": AnyEncodable(false), "services": AnyEncodable("")])
+            }
+            let out = try await DockerDriver.composeStatus(project: name, dir: dir)
+            // Coarse liveness for the UI; `services` carries the full JSON for the
+            // control plane to parse precisely.
+            let running = out.stdout.contains("\"State\":\"running\"") || out.stdout.contains("\"State\": \"running\"")
+            return APIClient.ResultPayload(ok: true, error: nil, data: [
+                "running": AnyEncodable(running),
+                "services": AnyEncodable(out.stdout),
+            ])
+        } catch {
+            return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
+        }
     }
 
     // MARK: - Status

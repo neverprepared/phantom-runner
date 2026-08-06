@@ -251,4 +251,54 @@ struct DockerDriver {
         }
         return result
     }
+
+    // MARK: - Platform stack (an existing compose project, discovered by label)
+
+    /// `docker ps -a --filter label=com.docker.compose.project=<project>`, one
+    /// TSV row per container: service, state, status, ports. Mirrors what the
+    /// app used to run locally, so the control plane parses the same shape.
+    /// Non-fatal so an absent stack yields empty output rather than throwing.
+    static func platformPs(project: String) async throws -> Output {
+        try await run(
+            ["ps", "-a",
+             "--filter", "label=com.docker.compose.project=\(project)",
+             "--format", #"{{.Label "com.docker.compose.service"}}\t{{.State}}\t{{.Status}}\t{{.Ports}}"#],
+            expectSuccess: false
+        )
+    }
+
+    /// Discover the compose project's working dir + config file(s) off a running
+    /// container's labels, so `docker compose` runs with the right project + .env
+    /// without a hardcoded path. Returns (workdir, configFiles) or nil if the
+    /// stack has no running containers.
+    static func platformComposeCtx(project: String) async throws -> (workdir: String, configFiles: String)? {
+        let out = try await run(
+            ["ps",
+             "--filter", "label=com.docker.compose.project=\(project)",
+             "--format", #"{{.Label "com.docker.compose.project.working_dir"}}\t{{.Label "com.docker.compose.project.config_files"}}"#],
+            expectSuccess: false
+        )
+        for line in out.stdout.split(separator: "\n") {
+            let parts = line.split(separator: "\t", maxSplits: 1, omittingEmptySubsequences: false)
+            if parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty {
+                return (String(parts[0]), String(parts[1]))
+            }
+        }
+        return nil
+    }
+
+    /// `docker compose --project-directory <wd> -f <cfg> <action> [service]`.
+    /// `action` is up|stop|restart; `up` gets `-d`. Targets one service when
+    /// `service` is non-nil, else the whole stack.
+    @discardableResult
+    static func platformCompose(action: String, workdir: String, configFiles: String, service: String?) async throws -> Output {
+        var args = ["compose", "--project-directory", workdir]
+        for cfg in configFiles.split(separator: ",") {
+            args += ["-f", cfg.trimmingCharacters(in: .whitespaces)]
+        }
+        args.append(action)
+        if action == "up" { args.append("-d") }
+        if let service, !service.isEmpty { args.append(service) }
+        return try await run(args, expectSuccess: true, cwd: URL(fileURLWithPath: workdir))
+    }
 }

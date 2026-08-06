@@ -287,6 +287,35 @@ struct DockerDriver {
         return nil
     }
 
+    /// The id of the running platform postgres container, discovered by compose
+    /// label. Prefers the `<project>` one when several postgres containers exist.
+    static func postgresContainer(project: String) async throws -> String? {
+        let out = try await run(
+            ["ps",
+             "--filter", "label=com.docker.compose.service=postgres",
+             "--format", "{{.ID}} {{.Names}}"],
+            expectSuccess: false
+        )
+        var first: String?
+        for line in out.stdout.split(separator: "\n") {
+            let f = line.split(separator: " ")
+            guard let id = f.first.map(String.init) else { continue }
+            if first == nil { first = id }
+            if f.count >= 2 && f[1].contains(project) { return id }
+        }
+        return first
+    }
+
+    /// `docker exec <cid> psql -c <query>` against the platform postgres, with
+    /// unaligned `|`-separated rows. Read-only listing; the query is caller-fixed
+    /// (RunnerCore), never taken from the wire.
+    static func psqlQuery(container: String, query: String) async throws -> Output {
+        try await run(
+            ["exec", container, "psql", "-U", "phantom", "-At", "-F", "|", "-c", query],
+            expectSuccess: true
+        )
+    }
+
     /// `docker compose --project-directory <wd> -f <cfg> <action> [service]`.
     /// `action` is up|stop|restart; `up` gets `-d`. Targets one service when
     /// `service` is non-nil, else the whole stack.

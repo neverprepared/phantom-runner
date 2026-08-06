@@ -398,6 +398,8 @@ final class RunnerCore {
             return await handlePlatformPs(payload: work.payload)
         case "platform.action":
             return await handlePlatformAction(payload: work.payload)
+        case "db.list":
+            return await handleDbList(payload: work.payload)
         default:
             return APIClient.ResultPayload(
                 ok: false,
@@ -708,6 +710,31 @@ final class RunnerCore {
             return APIClient.ResultPayload(ok: true, error: nil, data: ["output": AnyEncodable(out.stdout + out.stderr)])
         } catch {
             log.warning("platform.action failed: \(String(describing: error), privacy: .public)")
+            return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
+        }
+    }
+
+    /// List the per-service databases on the platform postgres. The listing query
+    /// is fixed here (never taken from the wire) — this handler is read-only.
+    private func handleDbList(payload: [String: AnyDecodable]) async -> APIClient.ResultPayload {
+        guard owner?.settings.dockerEnabled == true else {
+            return APIClient.ResultPayload(ok: false, error: "docker capability disabled in runner settings", data: nil)
+        }
+        let project = (payload["project"]?.value as? String) ?? "phantom-platform"
+        guard isValidProject(project) else {
+            return APIClient.ResultPayload(ok: false, error: "invalid project name", data: nil)
+        }
+        let query = "SELECT datname, pg_size_pretty(pg_database_size(datname)) "
+            + "FROM pg_database WHERE datistemplate=false "
+            + "AND datname NOT IN ('postgres','phantom') ORDER BY datname"
+        do {
+            guard let cid = try await DockerDriver.postgresContainer(project: project) else {
+                return APIClient.ResultPayload(ok: false, error: "no platform postgres container is running", data: nil)
+            }
+            let out = try await DockerDriver.psqlQuery(container: cid, query: query)
+            // Raw `name|size` rows; the control plane parses + filters.
+            return APIClient.ResultPayload(ok: true, error: nil, data: ["databases": AnyEncodable(out.stdout)])
+        } catch {
             return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
         }
     }

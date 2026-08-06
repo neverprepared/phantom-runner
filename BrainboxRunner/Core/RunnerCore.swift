@@ -394,6 +394,10 @@ final class RunnerCore {
             return await handleIntegrationDown(payload: work.payload)
         case "integration.status":
             return await handleIntegrationStatus(payload: work.payload)
+        case "platform.ps":
+            return await handlePlatformPs(payload: work.payload)
+        case "platform.action":
+            return await handlePlatformAction(payload: work.payload)
         default:
             return APIClient.ResultPayload(
                 ok: false,
@@ -648,6 +652,62 @@ final class RunnerCore {
                 "services": AnyEncodable(out.stdout),
             ])
         } catch {
+            return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
+        }
+    }
+
+    // MARK: - Platform stack
+
+    /// Compose project name doubles as a docker-ps filter + a shell arg; reject
+    /// anything odd. Defaults to "phantom-platform" when omitted.
+    private func isValidProject(_ s: String) -> Bool {
+        s.range(of: "^[a-zA-Z0-9][a-zA-Z0-9_.-]*$", options: .regularExpression) != nil
+    }
+
+    private func handlePlatformPs(payload: [String: AnyDecodable]) async -> APIClient.ResultPayload {
+        guard owner?.settings.dockerEnabled == true else {
+            return APIClient.ResultPayload(ok: false, error: "docker capability disabled in runner settings", data: nil)
+        }
+        let project = (payload["project"]?.value as? String) ?? "phantom-platform"
+        guard isValidProject(project) else {
+            return APIClient.ResultPayload(ok: false, error: "invalid project name", data: nil)
+        }
+        do {
+            let out = try await DockerDriver.platformPs(project: project)
+            // Raw TSV rows (service\tstate\tstatus\tports); the control plane parses.
+            return APIClient.ResultPayload(ok: true, error: nil, data: ["ps": AnyEncodable(out.stdout)])
+        } catch {
+            return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
+        }
+    }
+
+    private func handlePlatformAction(payload: [String: AnyDecodable]) async -> APIClient.ResultPayload {
+        guard owner?.settings.dockerEnabled == true else {
+            return APIClient.ResultPayload(ok: false, error: "docker capability disabled in runner settings", data: nil)
+        }
+        let project = (payload["project"]?.value as? String) ?? "phantom-platform"
+        guard isValidProject(project) else {
+            return APIClient.ResultPayload(ok: false, error: "invalid project name", data: nil)
+        }
+        guard let action = payload["action"]?.value as? String,
+              ["up", "stop", "restart"].contains(action) else {
+            return APIClient.ResultPayload(ok: false, error: "action must be up|stop|restart", data: nil)
+        }
+        // Optional single-service target; validated same as a project segment.
+        let service = payload["service"]?.value as? String
+        if let service, !service.isEmpty, !isValidProject(service) {
+            return APIClient.ResultPayload(ok: false, error: "invalid service name", data: nil)
+        }
+        do {
+            guard let ctx = try await DockerDriver.platformComposeCtx(project: project) else {
+                return APIClient.ResultPayload(ok: false, error: "no running \(project) containers to derive compose context", data: nil)
+            }
+            let out = try await DockerDriver.platformCompose(
+                action: action, workdir: ctx.workdir, configFiles: ctx.configFiles, service: service)
+            log.info("platform.action \(action, privacy: .public) done: \(project, privacy: .public)")
+            return APIClient.ResultPayload(ok: true, error: nil, data: ["output": AnyEncodable(out.stdout + out.stderr)])
+        } catch {
+            log.warning("platform.action failed: \(String(describing: error), privacy: .public)")
             return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
         }
     }

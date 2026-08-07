@@ -5,9 +5,9 @@ import OSLog
 /// returns a SessionContext-shaped result dict that the central API can
 /// hydrate back into its own SessionContext model.
 ///
-/// Scope (MVP): create + start container. Deliberately skips cosign, hardening,
-/// ttyd, role prompts, claude config bundle, task injection, repo handling,
-/// monitoring — those can land incrementally without changing this shape.
+/// Scope: create + start container, bootstrap the agent (decrypt creds, fetch
+/// task, launch claude via a direct wrapper exec), then attach ttyd. Still skips
+/// cosign, hardening, repo handling — those can land incrementally.
 struct SessionExecutor {
     let runnerName: String
     let runnerHost: String?
@@ -17,6 +17,14 @@ struct SessionExecutor {
     private static let log = Logger(subsystem: "com.neverprepared.brainbox-runner", category: "session")
     private static let webTermPort = 7681
     private static let defaultTTL = 3600
+    /// Env for direct wrapper execs. The wrapper self-sets PATH, but `docker
+    /// exec` starts from a minimal PATH, so seed the uv-managed ~/.local/bin
+    /// (python3, tmux) up front — mirrors the Python backend's _exec_env. Without
+    /// python3 the .claude.enc decrypt pipe dies silently and the session lands
+    /// at /login.
+    private static let wrapperExecEnv = [
+        "PATH": "/home/developer/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    ]
 
     init(runnerName: String, runnerHost: String? = nil, api: APIClient, imageName: String = "brainbox") {
         self.runnerName = runnerName
@@ -44,7 +52,7 @@ struct SessionExecutor {
             //    if the registry isn't reachable; local cached image still works.
             do {
                 await api.postEvent(runnerName: runnerName, message: "pulling image \(effectiveImage)…", session: req.sessionName)
-                try await DockerDriver.pull(image: effectiveImage)
+                try await DockerDriver.pull(image: effectiveImage, username: req.registryUsername, password: req.registryPassword)
                 await api.postEvent(runnerName: runnerName, message: "image ready", session: req.sessionName)
             } catch {
                 Self.log.warning("image pull failed (continuing with local): \(String(describing: error), privacy: .public)")
@@ -86,13 +94,34 @@ struct SessionExecutor {
             // 3. Start.
             try await DockerDriver.start(name: containerName)
 
-            // 4. Discover the host port Docker picked.
+            // 4. Bootstrap the agent: run the wrapper ONCE directly (detached),
+            //    mirroring the Python docker backend's start(). This creates the
+            //    tmux `main` session, decrypts the profile creds (OAuth/.env/.codex),
+            //    fetches the task from the hub store, and launches claude. An
+            //    autonomous worker never starts otherwise — ttyd (-W) only spawns
+            //    its command on a browser connection, which an unattended session
+            //    never receives, so the wrapper (and thus claude + task) never run.
+            //    ttyd (step 6) then just attaches to the existing `main`.
+            do {
+                _ = try await DockerDriver.exec(
+                    name: containerName,
+                    cmd: ["/home/developer/ttyd-wrapper.sh"],
+                    user: "developer",
+                    detach: true,
+                    env: Self.wrapperExecEnv
+                )
+                // Let the wrapper create tmux `main` before ttyd attaches.
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+            } catch {
+                Self.log.warning("agent bootstrap exec failed (continuing): \(String(describing: error), privacy: .public)")
+            }
+
+            // 5. Discover the host port Docker picked.
             let hostPort = (try? await DockerDriver.hostPort(name: containerName, containerPort: Self.webTermPort)) ?? 0
 
-            // 5. Launch the web terminal (ttyd) so the Wails app + the
-            //    /url returned in the response actually shows something.
-            //    Detached so we don't block on it; ttyd binds 7681 and
-            //    runs until the container stops.
+            // 6. Launch the web terminal (ttyd) so the Wails app + the
+            //    /url returned in the response actually shows something. Since the
+            //    wrapper already created `main`, ttyd just attaches on connect.
             try await launchWebTerminal(
                 containerName: containerName,
                 sessionName: req.sessionName,
@@ -203,7 +232,8 @@ struct SessionExecutor {
                 "/home/developer/ttyd-wrapper.sh",
             ],
             user: "developer",
-            detach: true
+            detach: true,
+            env: Self.wrapperExecEnv
         )
     }
 
@@ -234,6 +264,12 @@ struct SessionRequest {
     let sshUser: String?
     let image: String?
     let extraEnv: [String: String]
+    // Private-registry credentials the router ships so the runner can pull the
+    // profile image. The runner holds no registry creds of its own, and a
+    // `docker login` here can't persist over SSH (OrbStack's keychain credStore
+    // → -25308), so DockerDriver.pull writes an isolated inline-auth config.
+    let registryUsername: String?
+    let registryPassword: String?
 
     init(payload: [String: AnyDecodable]) {
         func str(_ k: String) -> String? {
@@ -259,5 +295,7 @@ struct SessionRequest {
         self.sshUser = str("ssh_user")
         self.image = str("image")
         self.extraEnv = (payload["extra_env"]?.value as? [String: Any])?.compactMapValues { $0 as? String } ?? [:]
+        self.registryUsername = str("registry_username")
+        self.registryPassword = str("registry_password")
     }
 }

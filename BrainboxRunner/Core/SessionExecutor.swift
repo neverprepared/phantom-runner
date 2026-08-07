@@ -23,7 +23,7 @@ struct SessionExecutor {
     /// python3 the .claude.enc decrypt pipe dies silently and the session lands
     /// at /login.
     private static let wrapperExecEnv = [
-        "PATH": "/home/developer/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        "PATH": "/home/developer/.local/bin:/home/linuxbrew/.linuxbrew/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
     ]
 
     init(runnerName: String, runnerHost: String? = nil, api: APIClient, imageName: String = "brainbox") {

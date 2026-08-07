@@ -43,8 +43,33 @@ struct DockerDriver {
         (try? await run(["version", "--format", "{{.Server.Version}}"], expectSuccess: true)) != nil
     }
 
-    static func pull(image: String) async throws {
-        _ = try await run(["pull", image], expectSuccess: true)
+    /// Pull an image. When registry credentials are supplied, pull through an
+    /// ISOLATED docker config dir carrying an inline base64 `auths` entry (and no
+    /// credsStore), so the pull authenticates without routing through OrbStack's
+    /// macOS keychain helper — which fails with `-25308` outside a GUI session
+    /// and leaves the daemon unable to fetch a freshly-rebuilt profile image.
+    static func pull(image: String, username: String? = nil, password: String? = nil) async throws {
+        guard let username, let password, !username.isEmpty, !password.isEmpty else {
+            _ = try await run(["pull", image], expectSuccess: true)
+            return
+        }
+        let registry = registryHost(from: image)
+        let dir = NSTemporaryDirectory() + "brainbox-dockercfg-" + UUID().uuidString
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(atPath: dir) }
+        let token = Data("\(username):\(password)".utf8).base64EncodedString()
+        let cfg: [String: Any] = ["auths": [registry: ["auth": token]]]
+        let cfgData = try JSONSerialization.data(withJSONObject: cfg)
+        try cfgData.write(to: URL(fileURLWithPath: dir + "/config.json"))
+        _ = try await run(["--config", dir, "pull", image], expectSuccess: true)
+    }
+
+    /// Registry host = the ref segment before the first `/` when it looks like a
+    /// hostname (has a `.` or `:`); otherwise it's a Docker Hub namespace.
+    private static func registryHost(from image: String) -> String {
+        guard let slash = image.firstIndex(of: "/") else { return "docker.io" }
+        let head = String(image[image.startIndex..<slash])
+        return (head.contains(".") || head.contains(":")) ? head : "docker.io"
     }
 
     /// Create (but do not start) a container. Returns the container ID.
@@ -97,11 +122,15 @@ struct DockerDriver {
         name: String,
         cmd: [String],
         user: String? = nil,
-        detach: Bool = false
+        detach: Bool = false,
+        env: [String: String]? = nil
     ) async throws -> Output {
         var args: [String] = ["exec"]
         if detach { args.append("-d") }
         if let u = user { args += ["-u", u] }
+        if let env = env {
+            for (k, v) in env { args += ["-e", "\(k)=\(v)"] }
+        }
         args.append(name)
         args.append(contentsOf: cmd)
         return try await run(args, expectSuccess: !detach)

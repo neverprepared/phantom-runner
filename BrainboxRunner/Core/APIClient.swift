@@ -60,8 +60,12 @@ struct APIClient {
 
     // MARK: - GitHub release check (public repo, no auth needed)
 
-    private static let githubRepo = "neverprepared/phantom-ink"
-    private static let runnerTagPrefix = "runner/v"
+    // Releases are published to the phantom-runner repo, tagged `vX.Y.Z`
+    // (Runner Release workflow, `on: push: tags: v*.*.*`). The old values
+    // (`phantom-ink` / `runner/v`) never matched any release, so the in-app
+    // updater silently never found one.
+    private static let githubRepo = "neverprepared/phantom-runner"
+    private static let runnerTagPrefix = "v"
 
     struct LatestRelease {
         let version: String

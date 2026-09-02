@@ -26,14 +26,27 @@ struct DockerDriver {
         let exitCode: Int32
     }
 
-    static func dockerBinary() -> URL? {
-        let candidates = [
-            "/usr/local/bin/docker",
-            "/opt/homebrew/bin/docker",
-            "/Applications/Docker.app/Contents/Resources/bin/docker",
+    /// Directories where a `docker` CLI is commonly installed, most-preferred
+    /// first. The runner is a GUI login-item with the bare launchd PATH
+    /// (`/usr/bin:/bin:...`), so it CANNOT rely on the shell PATH — we resolve
+    /// docker by absolute path here. OrbStack (the current macOS default) lives
+    /// under the user's home; Docker Desktop / Homebrew are kept as fallbacks.
+    static func dockerCLIDirs() -> [String] {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        return [
+            "\(home)/.orbstack/bin",                              // OrbStack (current)
+            "/usr/local/bin",                                     // Docker Desktop symlink / manual
+            "/opt/homebrew/bin",                                  // Homebrew
+            "/Applications/Docker.app/Contents/Resources/bin",    // Docker Desktop bundle
         ]
-        for path in candidates where FileManager.default.isExecutableFile(atPath: path) {
-            return URL(fileURLWithPath: path)
+    }
+
+    static func dockerBinary() -> URL? {
+        for dir in dockerCLIDirs() {
+            let path = dir + "/docker"
+            if FileManager.default.isExecutableFile(atPath: path) {
+                return URL(fileURLWithPath: path)
+            }
         }
         // Last-resort: rely on PATH (Process resolves via env).
         return URL(fileURLWithPath: "/usr/bin/env")
@@ -225,12 +238,14 @@ struct DockerDriver {
         } else {
             proc.arguments = args
         }
-        // Inherit PATH; Docker Desktop adds /Applications/Docker.app/Contents/Resources/bin
-        // which is typically already on the user shell PATH.
+        // The runner is a GUI login-item, so its inherited PATH is the bare
+        // launchd default and lacks the dirs where docker + its `compose` plugin
+        // live. Prepend the known CLI locations (OrbStack first) so `docker` and
+        // `docker compose` resolve regardless of the inherited PATH — this also
+        // covers the /usr/bin/env fallback and docker's own plugin lookup.
         var env = ProcessInfo.processInfo.environment
-        if let path = env["PATH"], !path.contains("/Applications/Docker.app/Contents/Resources/bin") {
-            env["PATH"] = path + ":/Applications/Docker.app/Contents/Resources/bin"
-        }
+        let basePath = env["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"
+        env["PATH"] = (dockerCLIDirs() + [basePath]).joined(separator: ":")
         // Caller-supplied env (e.g. an integration's `${VAR}` values for compose
         // interpolation) wins over the inherited environment.
         for (k, v) in extraEnv { env[k] = v }

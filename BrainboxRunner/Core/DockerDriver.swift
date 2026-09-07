@@ -62,10 +62,31 @@ struct DockerDriver {
     /// macOS keychain helper — which fails with `-25308` outside a GUI session
     /// and leaves the daemon unable to fetch a freshly-rebuilt profile image.
     static func pull(image: String, username: String? = nil, password: String? = nil) async throws {
-        guard let username, let password, !username.isEmpty, !password.isEmpty else {
-            _ = try await run(["pull", image], expectSuccess: true)
-            return
+        // When the router ships registry credentials, pull through them first
+        // (the runner host may not be `docker login`'d). If that fails, fall
+        // back to the host's own default docker config — a host that IS logged
+        // in pulls fine that way, so this recovers from stale/absent shipped
+        // creds instead of silently serving an outdated cached image.
+        if let username, let password, !username.isEmpty, !password.isEmpty {
+            do {
+                try await pullWithInlineAuth(image: image, username: username, password: password)
+                return
+            } catch {
+                log.warning("inline-auth pull failed, retrying with host docker login: \(String(describing: error), privacy: .public)")
+            }
         }
+        // No creds, or the inline-auth pull failed → plain pull using the host's
+        // default docker config. `docker pull` always contacts the registry, so
+        // a rebuilt tag is refreshed here (not a no-op) when the host can reach it.
+        _ = try await run(["pull", image], expectSuccess: true)
+    }
+
+    /// Pull through an ISOLATED docker config dir carrying an inline base64
+    /// `auths` entry (and no credsStore), so the pull authenticates without
+    /// routing through OrbStack's macOS keychain helper — which fails with
+    /// `-25308` outside a GUI session and leaves the daemon unable to fetch a
+    /// freshly-rebuilt profile image.
+    private static func pullWithInlineAuth(image: String, username: String, password: String) async throws {
         let registry = registryHost(from: image)
         let dir = NSTemporaryDirectory() + "brainbox-dockercfg-" + UUID().uuidString
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)

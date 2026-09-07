@@ -48,15 +48,23 @@ struct SessionExecutor {
         do {
             Self.log.info("session.create start: name=\(req.sessionName, privacy: .public) image=\(effectiveImage, privacy: .public)")
 
-            // 1. Pull the image (no-op if local). Best-effort: log and proceed
-            //    if the registry isn't reachable; local cached image still works.
+            // 1. Pull the image, then run it. FAIL-CLOSED: a profile image is a
+            //    mutable `:latest`-style tag that is rebuilt in place, so a
+            //    silent fall-back to a locally-cached copy would run a STALE
+            //    image indefinitely (the exact footgun this guards against).
+            //    DockerDriver.pull already force-pulls every launch and falls
+            //    back from shipped inline creds to the host's own registry
+            //    login; if it STILL fails we abort session.create rather than
+            //    launch something outdated. Registry genuinely unreachable ⇒ a
+            //    loud, actionable failure beats a quietly-wrong container.
             do {
                 await api.postEvent(runnerName: runnerName, message: "pulling image \(effectiveImage)…", session: req.sessionName)
                 try await DockerDriver.pull(image: effectiveImage, username: req.registryUsername, password: req.registryPassword)
                 await api.postEvent(runnerName: runnerName, message: "image ready", session: req.sessionName)
             } catch {
-                Self.log.warning("image pull failed (continuing with local): \(String(describing: error), privacy: .public)")
-                await api.postEvent(runnerName: runnerName, message: "image pull failed, using cache", session: req.sessionName)
+                Self.log.error("image pull failed — aborting session.create to avoid running a stale image: \(String(describing: error), privacy: .public)")
+                await api.postEvent(runnerName: runnerName, message: "image pull failed — aborting (refusing to run a stale image): \(effectiveImage)", session: req.sessionName)
+                throw error
             }
 
             // 2. Build create args.

@@ -42,3 +42,28 @@ targets:
         ASSETCATALOG_COMPILER_ACCENT_COLOR_NAME: AccentColor
         SWIFT_EMIT_LOC_STRINGS: YES
         SWIFT_VERSION: "5.9"
+    scheme:
+      testTargets:
+        - BrainboxRunnerTests
+
+  # Logic-test bundle. It compiles the units under test directly rather than
+  # linking the app, so the tests run with no host application — a menu-bar
+  # (LSUIElement) app is awkward to host, and these units are pure Foundation.
+  BrainboxRunnerTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests
+      - path: BrainboxRunner/Core/Redact.swift
+      - path: BrainboxRunner/Core/DockerDriver.swift
+    settings:
+      base:
+        SWIFT_VERSION: "5.9"
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.neverprepared.brainbox-runner-tests
+        ENABLE_HARDENED_RUNTIME: NO
+        # Must override the project-wide PRODUCT_NAME (BrainboxRunner), or the
+        # test bundle builds a second module of that name and collides with the
+        # app's: "Multiple commands produce .../BrainboxRunner.swiftmodule".
+        PRODUCT_NAME: BrainboxRunnerTests
+        PRODUCT_MODULE_NAME: BrainboxRunnerTests

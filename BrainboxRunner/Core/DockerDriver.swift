@@ -15,7 +15,13 @@ struct DockerDriver {
             case .binaryNotFound:
                 return "`docker` not on PATH"
             case .exit(let c, let e, let cmd):
-                return "docker \(cmd.joined(separator: " ")) exit \(c): \(e.prefix(300))"
+                // The argv carries the whole session environment (`-e
+                // BRAINBOX_TOKEN=…`), and stderr can echo it back, so both are
+                // scrubbed before they reach a log or the router. Redact BEFORE
+                // truncating — clipping first can strand half a live token.
+                let cmdText = Redact.argv(cmd)
+                let stderrText = Redact.text(e).prefix(300)
+                return "docker \(cmdText) exit \(c): \(stderrText)"
             }
         }
     }

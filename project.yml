@@ -62,3 +62,8 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: com.neverprepared.brainbox-runner-tests
         ENABLE_HARDENED_RUNTIME: NO
+        # Must override the project-wide PRODUCT_NAME (BrainboxRunner), or the
+        # test bundle builds a second module of that name and collides with the
+        # app's: "Multiple commands produce .../BrainboxRunner.swiftmodule".
+        PRODUCT_NAME: BrainboxRunnerTests
+        PRODUCT_MODULE_NAME: BrainboxRunnerTests

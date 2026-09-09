@@ -161,10 +161,14 @@ struct SessionExecutor {
         } catch {
             // Best-effort cleanup so we don't leak the half-created container.
             try? await DockerDriver.remove(name: containerName, force: true)
-            Self.log.error("session.create failed: \(String(describing: error), privacy: .public)")
+            // Scrub before the message is logged locally or relayed to the
+            // router. DockerError already redacts itself, but this path also
+            // carries errors from other layers whose payloads we do not control.
+            let message = Redact.text("\(error)")
+            Self.log.error("session.create failed: \(message, privacy: .public)")
             return APIClient.ResultPayload(
                 ok: false,
-                error: "\(error)",
+                error: message,
                 data: nil
             )
         }
@@ -216,8 +220,9 @@ struct SessionExecutor {
             // Best-effort: stop the VM but leave it for inspection — UTM keeps
             // VM bundles even after clone, deleting on failure surprises users.
             try? UTMDriver.stop(name: vmName)
-            Self.log.error("session.create utm failed: \(String(describing: error), privacy: .public)")
-            return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
+            let message = Redact.text("\(error)")
+            Self.log.error("session.create utm failed: \(message, privacy: .public)")
+            return APIClient.ResultPayload(ok: false, error: message, data: nil)
         }
     }
 

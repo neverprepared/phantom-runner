@@ -19,6 +19,8 @@ final class SettingsStore: ObservableObject {
         static let logVerbose = "logVerbose"
         static let machineID = "machineID"
         static let ollamaProxyPort = "ollamaProxyPort"
+        static let credentialCacheEnabled = "capabilities.credentialCache.enabled"
+        static let credentialCacheMaxAgeHours = "capabilities.credentialCache.maxAgeHours"
     }
 
     @Published var apiURL: String {
@@ -63,6 +65,17 @@ final class SettingsStore: ObservableObject {
     @Published var ollamaProxyPort: Int {
         didSet { UserDefaults.standard.set(ollamaProxyPort, forKey: Key.ollamaProxyPort) }
     }
+    /// When enabled, on session-create the runner pulls the profile's credential
+    /// bundle from the router, caches it per-profile on the host, and bind-mounts
+    /// the cred dirs into the container. Default off.
+    @Published var credentialCacheEnabled: Bool {
+        didSet { UserDefaults.standard.set(credentialCacheEnabled, forKey: Key.credentialCacheEnabled) }
+    }
+    /// Max age (hours) a stale cached bundle may still be served when the broker
+    /// is unreachable, bounding the revoked-but-still-served window. Default 24.
+    @Published var credentialCacheMaxAgeHours: Int {
+        didSet { UserDefaults.standard.set(credentialCacheMaxAgeHours, forKey: Key.credentialCacheMaxAgeHours) }
+    }
 
     /// Stable UUID for this machine. Generated once on first launch, never changes.
     /// Sent to the API on register so it can rename an existing runner instead of
@@ -94,6 +107,9 @@ final class SettingsStore: ObservableObject {
         self.logVerbose = d.bool(forKey: Key.logVerbose)
         self.ollamaProxyPort = d.integer(forKey: Key.ollamaProxyPort) > 0
             ? d.integer(forKey: Key.ollamaProxyPort) : 11435
+        self.credentialCacheEnabled = UserDefaults.standard.bool(forKey: Key.credentialCacheEnabled)
+        let ageRaw = UserDefaults.standard.integer(forKey: Key.credentialCacheMaxAgeHours)
+        self.credentialCacheMaxAgeHours = ageRaw == 0 ? 24 : ageRaw   // 0 (unset) → 24h default
     }
 
     /// Detect the primary LAN IPv4 address. Prefers en0 (Wi-Fi / Ethernet on

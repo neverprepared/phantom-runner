@@ -293,6 +293,40 @@ struct APIClient {
         }
     }
 
+    // MARK: - Credential bundle
+
+    /// Outcome of a credential-bundle fetch. Never surfaced as an error — the
+    /// caller (CredentialCache) decides what to do via the §6 state machine.
+    enum BundleOutcome {
+        case bundle(Data)   // 200 — fresh tar.gz
+        case none           // 404 — authoritative: broker has no bundle for this profile
+        case unavailable    // 503 / other / transport — broker down; caller may use stale cache
+    }
+
+    /// GET the profile's credential bundle (tar.gz) via the router. Maps HTTP
+    /// status to a typed outcome; never throws.
+    func fetchCredentialBundle(runnerName: String, profile: String) async -> BundleOutcome {
+        guard let escaped = profile.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let url = try? buildURL("/api/runners/\(runnerName)/cred-bundle?profile=\(escaped)") else {
+            return .unavailable
+        }
+        var req = URLRequest(url: url)
+        req.httpMethod = "GET"
+        req.timeoutInterval = 30
+        addAuth(&req)
+        do {
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            guard let http = resp as? HTTPURLResponse else { return .unavailable }
+            switch http.statusCode {
+            case 200: return .bundle(data)
+            case 404: return .none
+            default:  return .unavailable   // 503 broker-down, 400, 401, 5xx → treat as unavailable
+            }
+        } catch {
+            return .unavailable
+        }
+    }
+
     private func postJSON<Body: Encodable, Resp: Decodable>(
         path: String, body: Body, timeout: TimeInterval
     ) async throws -> Resp {

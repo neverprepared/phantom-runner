@@ -13,6 +13,7 @@ struct SessionExecutor {
     let runnerHost: String?
     let api: APIClient
     let imageName: String
+    let settings: SettingsStore
 
     private static let log = Logger(subsystem: "com.neverprepared.brainbox-runner", category: "session")
     private static let webTermPort = 7681
@@ -26,11 +27,12 @@ struct SessionExecutor {
         "PATH": "/home/developer/.local/bin:/home/linuxbrew/.linuxbrew/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
     ]
 
-    init(runnerName: String, runnerHost: String? = nil, api: APIClient, imageName: String = "brainbox") {
+    init(runnerName: String, runnerHost: String? = nil, api: APIClient, imageName: String = "brainbox", settings: SettingsStore) {
         self.runnerName = runnerName
         self.runnerHost = runnerHost
         self.api = api
         self.imageName = imageName
+        self.settings = settings
     }
 
     func execute(payload: [String: AnyDecodable]) async -> APIClient.ResultPayload {
@@ -84,9 +86,26 @@ struct SessionExecutor {
             try? FileManager.default.createDirectory(
                 atPath: sessionsDir, withIntermediateDirectories: true, attributes: nil
             )
-            let volumes: [(String, String, String)] = [
+            var volumes: [(String, String, String)] = [
                 (sessionsDir, "/home/developer/.claude/projects", "rw")
             ]
+
+            // Credential cache: pull the profile's cred bundle, cache it per-profile,
+            // and bind-mount the cred dirs (~/.azure, ~/.aws, ...) into the container.
+            // Fail-soft: on no-creds the container still launches. Feature-flagged.
+            let credCacheEnabled = await settings.credentialCacheEnabled
+            if credCacheEnabled, let profile = req.workspaceProfile, !profile.isEmpty {
+                let maxAgeHours = await settings.credentialCacheMaxAgeHours
+                let credMounts = await CredentialCache.materialize(
+                    profile: profile, api: api, runnerName: runnerName,
+                    maxAgeHours: maxAgeHours)
+                if !credMounts.isEmpty {
+                    volumes.append(contentsOf: credMounts)
+                    await api.postEvent(runnerName: runnerName,
+                                        message: "credential cache: mounted \(credMounts.count) dir(s)",
+                                        session: req.sessionName)
+                }
+            }
 
             _ = try await DockerDriver.create(
                 name: containerName,

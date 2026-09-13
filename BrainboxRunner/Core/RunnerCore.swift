@@ -549,7 +549,8 @@ final class RunnerCore {
         let exec = SessionExecutor(
             runnerName: owner.settings.runnerName,
             runnerHost: runnerHost,
-            api: APIClient(baseURL: baseURL, apiKey: apiKey)
+            api: APIClient(baseURL: baseURL, apiKey: apiKey),
+            settings: owner.settings
         )
         return await exec.execute(payload: payload)
     }

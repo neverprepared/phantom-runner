@@ -35,6 +35,7 @@
 		D61140724610C3979E7BE362 /* DockerDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F14B05128CFCC3468235E098 /* DockerDriver.swift */; };
 		DE9B379343D92B4FC95ECEEB /* Redact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E55C42EBC0D86759BA47F6 /* Redact.swift */; };
 		E0BC3C4D40A1F81379DA40EE /* AppleScriptRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDA8C9406482E6EBF2C0D682 /* AppleScriptRunner.swift */; };
+		E88F0C60D91476ED6F4960F4 /* CredentialCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BB0723FB7FE5B2EF93E2DF2 /* CredentialCache.swift */; };
 		F91D1D23D28052FC256A5372 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1B73148F93D766B5072CFFAC /* Assets.xcassets */; };
 		FB6FB7DA4A9C608107009899 /* CredentialsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAE3E95E6AF56E6355785936 /* CredentialsTab.swift */; };
 /* End PBXBuildFile section */
@@ -47,6 +48,7 @@
 		1CF739ED95538D21742A5C07 /* SessionExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionExecutor.swift; sourceTree = "<group>"; };
 		21023EC451C6D89E143AF9B0 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
 		21474723A4C0F931EF8B78E7 /* RunnerCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerCore.swift; sourceTree = "<group>"; };
+		2BB0723FB7FE5B2EF93E2DF2 /* CredentialCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialCache.swift; sourceTree = "<group>"; };
 		2F3976E860595DD8938C9E40 /* ResultQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultQueue.swift; sourceTree = "<group>"; };
 		48E6D96C32D74563C08B58D9 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
 		4EFCBACB40D0F4803FA89E21 /* OllamaProxy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OllamaProxy.swift; sourceTree = "<group>"; };
@@ -90,6 +92,7 @@
 				C9CBCADD106AF6A8E7400034 /* APIClient.swift */,
 				CDA8C9406482E6EBF2C0D682 /* AppleScriptRunner.swift */,
 				AB7E6477BF6AA5CD2AE3F533 /* AppState.swift */,
+				2BB0723FB7FE5B2EF93E2DF2 /* CredentialCache.swift */,
 				F14B05128CFCC3468235E098 /* DockerDriver.swift */,
 				7660EEBCC042C876EF4B4602 /* Envelope.swift */,
 				00BA82D894DE3FE091155322 /* EnvelopeQueue.swift */,
@@ -262,6 +265,7 @@
 				E0BC3C4D40A1F81379DA40EE /* AppleScriptRunner.swift in Sources */,
 				4CC2925BC34F83F10177706B /* BrainboxRunnerApp.swift in Sources */,
 				6FA4E55A593A193AF2EDFE92 /* CapabilitiesTab.swift in Sources */,
+				E88F0C60D91476ED6F4960F4 /* CredentialCache.swift in Sources */,
 				FB6FB7DA4A9C608107009899 /* CredentialsTab.swift in Sources */,
 				34835E9A21EAA7756A0C8082 /* DockerDriver.swift in Sources */,
 				4D2714DA5AAD44E24E087B2E /* Envelope.swift in Sources */,

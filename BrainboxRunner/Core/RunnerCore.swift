@@ -796,13 +796,22 @@ final class RunnerCore {
             return APIClient.ResultPayload(
                 ok: false, error: "workspace_profile is required", data: nil)
         }
-        guard let env = ProfileEnv.resolve(profile: profile) else {
+        guard let localEnv = ProfileEnv.resolve(profile: profile) else {
             return APIClient.ResultPayload(
                 ok: false,
                 error: "no workspace home for profile \(profile) on this machine",
                 data: nil
             )
         }
+        // The control plane supplies the profile's environment from the
+        // credentials broker — the one source of truth, since the host dotenv
+        // and the broker bundle had drifted. It layers OVER the local one, but
+        // never over WORKSPACE_HOME: that is a path on this machine, which the
+        // control plane cannot know. Falls back to local-only when absent, so
+        // an older control plane still works.
+        let supplied = (payload["env"]?.value as? [String: Any])?
+            .compactMapValues { $0 as? String }
+        let env = ProfileEnv.merging(localEnv, supplied: supplied)
 
         let cwd = payload["cwd"]?.value as? String
         let timeout = (payload["timeout_s"]?.value as? Double)

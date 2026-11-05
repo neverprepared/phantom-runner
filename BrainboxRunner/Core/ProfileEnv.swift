@@ -156,6 +156,28 @@ enum ProfileEnv {
         ]
     }
 
+    /// Layer a control-plane-supplied environment over the locally resolved one.
+    ///
+    /// The broker is the one source of truth for a profile's secrets, because
+    /// two env sources drift: the live m3-64 host `.env` carried 30 keys and
+    /// none of the five the Drive inbox reads, while the broker bundle for the
+    /// same profile carried 114 and did. A collector on the thinner env runs,
+    /// reports success, and files nothing — the worst failure mode available.
+    ///
+    /// So `supplied` wins over the host dotenv. The exception is the identity
+    /// pair: `WORKSPACE_HOME` is a path on THIS machine, which the control
+    /// plane cannot know, and `WORKSPACE_PROFILE` is already settled by
+    /// whichever profile we resolved. Letting a remote value override those
+    /// would point the command at a directory that does not exist here.
+    static func merging(_ local: [String: String], supplied: [String: String]?) -> [String: String] {
+        guard let supplied, !supplied.isEmpty else { return local }
+        var merged = local
+        for (k, v) in supplied where k != "WORKSPACE_HOME" && k != "WORKSPACE_PROFILE" {
+            merged[k] = v
+        }
+        return merged
+    }
+
     /// The full environment for a host command run under `profile`.
     ///
     /// Returns nil when the profile has no workspace home on this machine —

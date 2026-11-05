@@ -176,3 +176,59 @@ final class ProfileEnvTests: XCTestCase {
                       "unexpected inherited vars: \(Set(env!.keys).subtracting(allowed))")
     }
 }
+
+
+/// Merging the control plane's bundle over the locally resolved environment.
+///
+/// This exists because two env sources drifted: the live m3-64 host .env
+/// carried 30 keys and none of the five the Drive inbox reads, while the
+/// broker bundle for the same profile carried 114 and did. A collector on the
+/// thinner env runs, reports success and files nothing.
+extension ProfileEnvTests {
+
+    func testSuppliedValuesWinOverTheHostDotenv() {
+        // The whole point: the broker is authoritative for secrets.
+        let out = ProfileEnv.merging(
+            ["CL_ROUTER_API": "stale-or-missing", "KEEP": "local"],
+            supplied: ["CL_ROUTER_API": "https://api.test", "CL_BRAIN_API_TOKEN": "tok"]
+        )
+        XCTAssertEqual(out["CL_ROUTER_API"], "https://api.test")
+        XCTAssertEqual(out["CL_BRAIN_API_TOKEN"], "tok")
+        XCTAssertEqual(out["KEEP"], "local", "local-only keys must survive")
+    }
+
+    func testWorkspaceHomeIsNeverOverriddenByTheControlPlane() {
+        // WORKSPACE_HOME is a path on THIS machine. A remote value would point
+        // the command at a directory that does not exist here.
+        let out = ProfileEnv.merging(
+            ["WORKSPACE_HOME": "/Users/me/workspaces/profiles/personal"],
+            supplied: ["WORKSPACE_HOME": "/home/developer"]
+        )
+        XCTAssertEqual(out["WORKSPACE_HOME"], "/Users/me/workspaces/profiles/personal")
+    }
+
+    func testWorkspaceProfileIsNeverOverridden() {
+        // Already settled by whichever profile we resolved against.
+        let out = ProfileEnv.merging(
+            ["WORKSPACE_PROFILE": "personal"],
+            supplied: ["WORKSPACE_PROFILE": "someone-else"]
+        )
+        XCTAssertEqual(out["WORKSPACE_PROFILE"], "personal")
+    }
+
+    func testNilSuppliedLeavesTheLocalEnvironmentAlone() {
+        // An older control plane sends no env; host-exec must still work.
+        let local = ["A": "1", "WORKSPACE_HOME": "/w"]
+        XCTAssertEqual(ProfileEnv.merging(local, supplied: nil), local)
+    }
+
+    func testEmptySuppliedLeavesTheLocalEnvironmentAlone() {
+        let local = ["A": "1"]
+        XCTAssertEqual(ProfileEnv.merging(local, supplied: [:]), local)
+    }
+
+    func testSuppliedOnlyKeysAreAdded() {
+        let out = ProfileEnv.merging([:], supplied: ["NEW": "v"])
+        XCTAssertEqual(out["NEW"], "v")
+    }
+}

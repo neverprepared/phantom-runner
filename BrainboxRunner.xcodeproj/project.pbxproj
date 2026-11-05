@@ -15,6 +15,7 @@
 		3D13CF81EA88A2BB11B7B8CF /* UTMDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3A246AD11A400CC25A53D3B /* UTMDriver.swift */; };
 		4C85333264C276F3942FBBFD /* UpdateRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 535702CEBEB32B69C19CB6C4 /* UpdateRow.swift */; };
 		4CC2925BC34F83F10177706B /* BrainboxRunnerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7933890370CA640A6AA6064F /* BrainboxRunnerApp.swift */; };
+		4CF72BDD125F574D1DBC8190 /* HostCommandDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F883BF63BA4E17288093B9F8 /* HostCommandDriver.swift */; };
 		4D2714DA5AAD44E24E087B2E /* Envelope.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7660EEBCC042C876EF4B4602 /* Envelope.swift */; };
 		5A88A7E35510C6777A9CF0CB /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59D00EE7A7D6EF4EB2323136 /* KeychainStore.swift */; };
 		629997400B4CA88F06DA2177 /* EnvelopeQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00BA82D894DE3FE091155322 /* EnvelopeQueue.swift */; };
@@ -26,14 +27,18 @@
 		6FA4E55A593A193AF2EDFE92 /* CapabilitiesTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4DD14E847EA76E2F0BC3C6C /* CapabilitiesTab.swift */; };
 		76762D4752C4A3EB5FEAB15D /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD6412DF41930DBC3C0FBF75 /* SettingsView.swift */; };
 		8B5F5A11D47C749D7E673BC4 /* SessionExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CF739ED95538D21742A5C07 /* SessionExecutor.swift */; };
+		96EB04D3E7DA245DDAD6C1D7 /* HostCommandDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F883BF63BA4E17288093B9F8 /* HostCommandDriver.swift */; };
+		9B583E873453DFE37EBD99C4 /* ProfileEnv.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DE7873A141AFC515FADA42C /* ProfileEnv.swift */; };
 		9C49F41F759E2B48EF2D8E2A /* RunnerCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21474723A4C0F931EF8B78E7 /* RunnerCore.swift */; };
 		A6A37232AD3C400D63719926 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9CBCADD106AF6A8E7400034 /* APIClient.swift */; };
+		AB8E1B0062C3A6C833178B04 /* ProfileEnvTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5552E2FA6B2D91E22F79E87B /* ProfileEnvTests.swift */; };
 		B0DA9FBB6BD550F0100AC2DE /* ResultQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F3976E860595DD8938C9E40 /* ResultQueue.swift */; };
 		B61096DEB9EBA926F1FA181F /* RedactTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A5A0C4F643491179D17A29 /* RedactTests.swift */; };
 		CB859BD667C5A6CD0E9001B0 /* PairingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6A5F52ABCCA21584ED708EE /* PairingSheet.swift */; };
 		CF6DE7EE73F07B99EE08B939 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48E6D96C32D74563C08B58D9 /* MenuBarView.swift */; };
 		D61140724610C3979E7BE362 /* DockerDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F14B05128CFCC3468235E098 /* DockerDriver.swift */; };
 		DE9B379343D92B4FC95ECEEB /* Redact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E55C42EBC0D86759BA47F6 /* Redact.swift */; };
+		DF4142E36BD42A900AD1C3DE /* ProfileEnv.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DE7873A141AFC515FADA42C /* ProfileEnv.swift */; };
 		E0BC3C4D40A1F81379DA40EE /* AppleScriptRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDA8C9406482E6EBF2C0D682 /* AppleScriptRunner.swift */; };
 		E88F0C60D91476ED6F4960F4 /* CredentialCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BB0723FB7FE5B2EF93E2DF2 /* CredentialCache.swift */; };
 		F91D1D23D28052FC256A5372 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1B73148F93D766B5072CFFAC /* Assets.xcassets */; };
@@ -53,6 +58,7 @@
 		48E6D96C32D74563C08B58D9 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
 		4EFCBACB40D0F4803FA89E21 /* OllamaProxy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OllamaProxy.swift; sourceTree = "<group>"; };
 		535702CEBEB32B69C19CB6C4 /* UpdateRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateRow.swift; sourceTree = "<group>"; };
+		5552E2FA6B2D91E22F79E87B /* ProfileEnvTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEnvTests.swift; sourceTree = "<group>"; };
 		59D00EE7A7D6EF4EB2323136 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		68A5A0C4F643491179D17A29 /* RedactTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedactTests.swift; sourceTree = "<group>"; };
 		714A9795824794549026F9FE /* BrainboxRunner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BrainboxRunner.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -60,6 +66,7 @@
 		7933890370CA640A6AA6064F /* BrainboxRunnerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrainboxRunnerApp.swift; sourceTree = "<group>"; };
 		8533B3BDCCB861A68C9F3745 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		8D5911779CD52A96182D0CC7 /* UpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateChecker.swift; sourceTree = "<group>"; };
+		8DE7873A141AFC515FADA42C /* ProfileEnv.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEnv.swift; sourceTree = "<group>"; };
 		8DF99ECF96FA544FF607C90F /* BrainboxRunner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BrainboxRunner.entitlements; sourceTree = "<group>"; };
 		92E55C42EBC0D86759BA47F6 /* Redact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Redact.swift; sourceTree = "<group>"; };
 		A45E5E6DCD243E4590EE1E89 /* SSHDriver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHDriver.swift; sourceTree = "<group>"; };
@@ -74,6 +81,7 @@
 		E842C94C4DD59B5C0A05394B /* APITab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APITab.swift; sourceTree = "<group>"; };
 		F086A7A37B58DFF46E9C5EA7 /* GeneralTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralTab.swift; sourceTree = "<group>"; };
 		F14B05128CFCC3468235E098 /* DockerDriver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockerDriver.swift; sourceTree = "<group>"; };
+		F883BF63BA4E17288093B9F8 /* HostCommandDriver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostCommandDriver.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -96,9 +104,11 @@
 				F14B05128CFCC3468235E098 /* DockerDriver.swift */,
 				7660EEBCC042C876EF4B4602 /* Envelope.swift */,
 				00BA82D894DE3FE091155322 /* EnvelopeQueue.swift */,
+				F883BF63BA4E17288093B9F8 /* HostCommandDriver.swift */,
 				59D00EE7A7D6EF4EB2323136 /* KeychainStore.swift */,
 				4EFCBACB40D0F4803FA89E21 /* OllamaProxy.swift */,
 				0757B08D76E36F77E3549A66 /* PairingClient.swift */,
+				8DE7873A141AFC515FADA42C /* ProfileEnv.swift */,
 				92E55C42EBC0D86759BA47F6 /* Redact.swift */,
 				2F3976E860595DD8938C9E40 /* ResultQueue.swift */,
 				21474723A4C0F931EF8B78E7 /* RunnerCore.swift */,
@@ -142,6 +152,7 @@
 		9FB5C9DAB2D444FF7FBEB223 /* Tests */ = {
 			isa = PBXGroup;
 			children = (
+				5552E2FA6B2D91E22F79E87B /* ProfileEnvTests.swift */,
 				68A5A0C4F643491179D17A29 /* RedactTests.swift */,
 			);
 			path = Tests;
@@ -250,6 +261,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				D61140724610C3979E7BE362 /* DockerDriver.swift in Sources */,
+				4CF72BDD125F574D1DBC8190 /* HostCommandDriver.swift in Sources */,
+				DF4142E36BD42A900AD1C3DE /* ProfileEnv.swift in Sources */,
+				AB8E1B0062C3A6C833178B04 /* ProfileEnvTests.swift in Sources */,
 				641223DBE763BA4C8DBD537E /* Redact.swift in Sources */,
 				B61096DEB9EBA926F1FA181F /* RedactTests.swift in Sources */,
 			);
@@ -271,11 +285,13 @@
 				4D2714DA5AAD44E24E087B2E /* Envelope.swift in Sources */,
 				629997400B4CA88F06DA2177 /* EnvelopeQueue.swift in Sources */,
 				65E3E524AC8E93E454C5E9DC /* GeneralTab.swift in Sources */,
+				96EB04D3E7DA245DDAD6C1D7 /* HostCommandDriver.swift in Sources */,
 				5A88A7E35510C6777A9CF0CB /* KeychainStore.swift in Sources */,
 				CF6DE7EE73F07B99EE08B939 /* MenuBarView.swift in Sources */,
 				64BA44A6807A3476CF284C50 /* OllamaProxy.swift in Sources */,
 				0EAA065AF980A4AA7FE30E95 /* PairingClient.swift in Sources */,
 				CB859BD667C5A6CD0E9001B0 /* PairingSheet.swift in Sources */,
+				9B583E873453DFE37EBD99C4 /* ProfileEnv.swift in Sources */,
 				DE9B379343D92B4FC95ECEEB /* Redact.swift in Sources */,
 				B0DA9FBB6BD550F0100AC2DE /* ResultQueue.swift in Sources */,
 				9C49F41F759E2B48EF2D8E2A /* RunnerCore.swift in Sources */,

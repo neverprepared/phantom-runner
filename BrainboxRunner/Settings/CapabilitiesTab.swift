@@ -36,6 +36,7 @@ struct CapabilitiesTab: View {
             Section {
                 Toggle("docker (containers)", isOn: $state.settings.dockerEnabled)
                 Toggle("utm (virtual machines)", isOn: $state.settings.utmEnabled)
+                Toggle("host commands (scheduled work on this Mac)", isOn: $state.settings.hostExecEnabled)
                 Toggle("ollama (local LLM inference)", isOn: $state.settings.ollamaEnabled)
                 if state.settings.ollamaEnabled {
                     OllamaProxyStatusRow(proxy: state.ollamaProxy)
@@ -43,7 +44,7 @@ struct CapabilitiesTab: View {
             } header: {
                 Text("Compute capabilities")
             } footer: {
-                Text("Enabled capabilities are advertised at registration so the API knows what work this agent can pick up. Ollama is fronted by a local HTTPS proxy (port 11435) authenticated with the runner's API key — no need to bind Ollama to 0.0.0.0.")
+                Text("Enabled capabilities are advertised at registration so the API knows what work this agent can pick up. Host commands run OUTSIDE any container, as you, with this profile's environment — enable it only for scheduled work that genuinely needs this Mac (Homebrew tools, Reminders, Drive credentials). Ollama is fronted by a local HTTPS proxy (port 11435) authenticated with the runner's API key — no need to bind Ollama to 0.0.0.0.")
             }
 
             Section {

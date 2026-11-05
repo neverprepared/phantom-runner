@@ -80,6 +80,10 @@ final class RunnerCore {
             "docker": settings.dockerEnabled,
             "utm": settings.utmEnabled,
             "ollama": ollamaProxyPort != nil,
+            // Advertised so the control plane can refuse to schedule host work
+            // on a machine whose owner has not opted in, instead of dispatching
+            // it and collecting a failure.
+            "host_exec": settings.hostExecEnabled,
         ]
         paused = false
 
@@ -400,6 +404,8 @@ final class RunnerCore {
             return await handlePlatformAction(payload: work.payload)
         case "db.list":
             return await handleDbList(payload: work.payload)
+        case "host.command":
+            return await handleHostCommand(payload: work.payload)
         default:
             return APIClient.ResultPayload(
                 ok: false,
@@ -747,4 +753,95 @@ final class RunnerCore {
         owner?.lastError = error
         lastError = error
     }
+
+    // MARK: - host.command
+
+    /// Run a scheduled command on this machine's host, outside any container.
+    ///
+    /// The third execution locale: portable work runs in a container on the
+    /// platform, widget work runs inside the desktop app, and work bound to a
+    /// specific Mac runs here. Because this runner is a launchd process
+    /// independent of that app, such a schedule survives the app closing —
+    /// which is the actual requirement for host-bound work, since a job that
+    /// needs *this* Mac cannot run anywhere else anyway.
+    ///
+    /// Three refusals, all deliberate:
+    ///   * capability off — the machine's owner has not consented locally;
+    ///   * argv not a non-empty string array — never a shell string from the
+    ///     wire, matching every other handler here;
+    ///   * unknown profile — a command with the wrong environment usually
+    ///     SUCCEEDS and emits quietly wrong output, which is worse than failing.
+    private func handleHostCommand(payload: [String: AnyDecodable]) async -> APIClient.ResultPayload {
+        guard owner?.settings.hostExecEnabled == true else {
+            return APIClient.ResultPayload(
+                ok: false,
+                error: "host_exec capability disabled in runner settings on this machine",
+                data: nil
+            )
+        }
+
+        guard let rawArgv = payload["argv"]?.value as? [Any] else {
+            return APIClient.ResultPayload(
+                ok: false, error: "argv must be an array of strings", data: nil)
+        }
+        let argv = rawArgv.compactMap { $0 as? String }
+        guard argv.count == rawArgv.count, !argv.isEmpty,
+              !(argv.first ?? "").isEmpty else {
+            return APIClient.ResultPayload(
+                ok: false, error: "argv must be a non-empty array of strings", data: nil)
+        }
+
+        let profile = (payload["workspace_profile"]?.value as? String) ?? ""
+        guard !profile.isEmpty else {
+            return APIClient.ResultPayload(
+                ok: false, error: "workspace_profile is required", data: nil)
+        }
+        guard let env = ProfileEnv.resolve(profile: profile) else {
+            return APIClient.ResultPayload(
+                ok: false,
+                error: "no workspace home for profile \(profile) on this machine",
+                data: nil
+            )
+        }
+
+        let cwd = payload["cwd"]?.value as? String
+        let timeout = (payload["timeout_s"]?.value as? Double)
+            ?? (payload["timeout_s"]?.value as? Int).map(Double.init)
+            ?? 600
+        let cap = (payload["output_cap"]?.value as? Int) ?? HostCommandDriver.defaultOutputCap
+
+        do {
+            let out = try await HostCommandDriver.run(
+                argv: argv, env: env, cwd: cwd,
+                timeout: max(1, min(timeout, 3600)), outputCap: cap
+            )
+            // Redacted on the way out: a collector's output can echo a token it
+            // was given, and this crosses the wire into the execution ledger.
+            var data: [String: AnyEncodable] = [
+                "exit_code": AnyEncodable(Int(out.exitCode)),
+                "stdout": AnyEncodable(Redact.text(out.stdout)),
+                "stderr": AnyEncodable(Redact.text(out.stderr)),
+                "truncated": AnyEncodable(out.truncated),
+            ]
+            if out.timedOut {
+                data["timed_out"] = AnyEncodable(true)
+                return APIClient.ResultPayload(
+                    ok: false,
+                    error: "host command timed out after \(Int(timeout))s and was terminated",
+                    data: data
+                )
+            }
+            if out.exitCode != 0 {
+                return APIClient.ResultPayload(
+                    ok: false,
+                    error: "host command exited \(out.exitCode)",
+                    data: data
+                )
+            }
+            return APIClient.ResultPayload(ok: true, error: nil, data: data)
+        } catch {
+            return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
+        }
+    }
+
 }

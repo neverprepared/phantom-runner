@@ -12,6 +12,7 @@ final class SettingsStore: ObservableObject {
         static let tags = "tags"
         static let dockerEnabled = "capabilities.docker.enabled"
         static let utmEnabled = "capabilities.utm.enabled"
+        static let hostExecEnabled = "capabilities.hostexec.enabled"
         static let ollamaEnabled = "capabilities.ollama.enabled"
         static let autoUpdate = "autoUpdate"
         static let maxConcurrent = "maxConcurrent"
@@ -41,6 +42,18 @@ final class SettingsStore: ObservableObject {
     @Published var dockerEnabled: Bool {
         didSet { UserDefaults.standard.set(dockerEnabled, forKey: Key.dockerEnabled) }
     }
+    /// Host-exec: run a scheduled command on THIS machine, outside a container.
+    ///
+    /// Defaults OFF, unlike docker/utm. This is the consent gate for the most
+    /// privileged thing the runner can do — the process is unsandboxed and runs
+    /// as the logged-in user, so an arbitrary host command can read anything
+    /// that user can, including the Keychain and any materialized cloud
+    /// credential bundle. The machine's owner opts in here, at this machine's
+    /// own keyboard; the control plane cannot turn it on remotely.
+    @Published var hostExecEnabled: Bool {
+        didSet { UserDefaults.standard.set(hostExecEnabled, forKey: Key.hostExecEnabled) }
+    }
+
     @Published var utmEnabled: Bool {
         didSet { UserDefaults.standard.set(utmEnabled, forKey: Key.utmEnabled) }
     }
@@ -99,6 +112,9 @@ final class SettingsStore: ObservableObject {
         self.tags = (d.array(forKey: Key.tags) as? [String]) ?? []
         self.dockerEnabled = d.object(forKey: Key.dockerEnabled) as? Bool ?? true
         self.utmEnabled = d.object(forKey: Key.utmEnabled) as? Bool ?? true
+        // Opt-in, not opt-out: an existing runner must not gain host-exec
+        // silently on upgrade.
+        self.hostExecEnabled = d.object(forKey: Key.hostExecEnabled) as? Bool ?? false
         self.ollamaEnabled = d.object(forKey: Key.ollamaEnabled) as? Bool ?? true
         self.autoUpdate = d.object(forKey: Key.autoUpdate) as? Bool ?? true
         self.maxConcurrent = d.integer(forKey: Key.maxConcurrent) > 0

@@ -56,6 +56,10 @@ targets:
       - path: Tests
       - path: BrainboxRunner/Core/Redact.swift
       - path: BrainboxRunner/Core/DockerDriver.swift
+      # Host-exec units. Both are dependency-free Foundation on purpose so they
+      # can be tested without hosting the menu-bar app.
+      - path: BrainboxRunner/Core/ProfileEnv.swift
+      - path: BrainboxRunner/Core/HostCommandDriver.swift
     settings:
       base:
         SWIFT_VERSION: "5.9"

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0EAA065AF980A4AA7FE30E95 /* PairingClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0757B08D76E36F77E3549A66 /* PairingClient.swift */; };
+		2F756EB067DE4D4E337A2F4F /* RemindersAccess+EventKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67F3328A18BBE207ACE1F392 /* RemindersAccess+EventKit.swift */; };
 		2FFEAB2AD8991F2714256500 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21023EC451C6D89E143AF9B0 /* SettingsStore.swift */; };
 		34835E9A21EAA7756A0C8082 /* DockerDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F14B05128CFCC3468235E098 /* DockerDriver.swift */; };
 		3B5672C111147237E1F26414 /* SSHDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = A45E5E6DCD243E4590EE1E89 /* SSHDriver.swift */; };
@@ -25,6 +26,7 @@
 		65E3E524AC8E93E454C5E9DC /* GeneralTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = F086A7A37B58DFF46E9C5EA7 /* GeneralTab.swift */; };
 		6E1AB47D4EC526C4280C0A95 /* APITab.swift in Sources */ = {isa = PBXBuildFile; fileRef = E842C94C4DD59B5C0A05394B /* APITab.swift */; };
 		6FA4E55A593A193AF2EDFE92 /* CapabilitiesTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4DD14E847EA76E2F0BC3C6C /* CapabilitiesTab.swift */; };
+		7125495770E1319FEC406B9C /* RemindersAccessState.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DF960A11B39A70296B5C18 /* RemindersAccessState.swift */; };
 		76762D4752C4A3EB5FEAB15D /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD6412DF41930DBC3C0FBF75 /* SettingsView.swift */; };
 		8B5F5A11D47C749D7E673BC4 /* SessionExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CF739ED95538D21742A5C07 /* SessionExecutor.swift */; };
 		96EB04D3E7DA245DDAD6C1D7 /* HostCommandDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F883BF63BA4E17288093B9F8 /* HostCommandDriver.swift */; };
@@ -34,6 +36,7 @@
 		AB8E1B0062C3A6C833178B04 /* ProfileEnvTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5552E2FA6B2D91E22F79E87B /* ProfileEnvTests.swift */; };
 		B0DA9FBB6BD550F0100AC2DE /* ResultQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F3976E860595DD8938C9E40 /* ResultQueue.swift */; };
 		B61096DEB9EBA926F1FA181F /* RedactTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A5A0C4F643491179D17A29 /* RedactTests.swift */; };
+		BD2EBBBCD533A34CBE183916 /* RemindersAccessState.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DF960A11B39A70296B5C18 /* RemindersAccessState.swift */; };
 		CB859BD667C5A6CD0E9001B0 /* PairingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6A5F52ABCCA21584ED708EE /* PairingSheet.swift */; };
 		CF6DE7EE73F07B99EE08B939 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48E6D96C32D74563C08B58D9 /* MenuBarView.swift */; };
 		D61140724610C3979E7BE362 /* DockerDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F14B05128CFCC3468235E098 /* DockerDriver.swift */; };
@@ -41,6 +44,7 @@
 		DF4142E36BD42A900AD1C3DE /* ProfileEnv.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DE7873A141AFC515FADA42C /* ProfileEnv.swift */; };
 		E0BC3C4D40A1F81379DA40EE /* AppleScriptRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDA8C9406482E6EBF2C0D682 /* AppleScriptRunner.swift */; };
 		E88F0C60D91476ED6F4960F4 /* CredentialCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BB0723FB7FE5B2EF93E2DF2 /* CredentialCache.swift */; };
+		EA52DC4DCC0D983C3EC7E0B8 /* RemindersAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27F9C6CD03A3B03FA495B8A9 /* RemindersAccessTests.swift */; };
 		F91D1D23D28052FC256A5372 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1B73148F93D766B5072CFFAC /* Assets.xcassets */; };
 		FB6FB7DA4A9C608107009899 /* CredentialsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAE3E95E6AF56E6355785936 /* CredentialsTab.swift */; };
 /* End PBXBuildFile section */
@@ -53,6 +57,7 @@
 		1CF739ED95538D21742A5C07 /* SessionExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionExecutor.swift; sourceTree = "<group>"; };
 		21023EC451C6D89E143AF9B0 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
 		21474723A4C0F931EF8B78E7 /* RunnerCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerCore.swift; sourceTree = "<group>"; };
+		27F9C6CD03A3B03FA495B8A9 /* RemindersAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemindersAccessTests.swift; sourceTree = "<group>"; };
 		2BB0723FB7FE5B2EF93E2DF2 /* CredentialCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialCache.swift; sourceTree = "<group>"; };
 		2F3976E860595DD8938C9E40 /* ResultQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultQueue.swift; sourceTree = "<group>"; };
 		48E6D96C32D74563C08B58D9 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
@@ -60,6 +65,7 @@
 		535702CEBEB32B69C19CB6C4 /* UpdateRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateRow.swift; sourceTree = "<group>"; };
 		5552E2FA6B2D91E22F79E87B /* ProfileEnvTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEnvTests.swift; sourceTree = "<group>"; };
 		59D00EE7A7D6EF4EB2323136 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		67F3328A18BBE207ACE1F392 /* RemindersAccess+EventKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RemindersAccess+EventKit.swift"; sourceTree = "<group>"; };
 		68A5A0C4F643491179D17A29 /* RedactTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedactTests.swift; sourceTree = "<group>"; };
 		714A9795824794549026F9FE /* BrainboxRunner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BrainboxRunner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7660EEBCC042C876EF4B4602 /* Envelope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Envelope.swift; sourceTree = "<group>"; };
@@ -71,6 +77,7 @@
 		92E55C42EBC0D86759BA47F6 /* Redact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Redact.swift; sourceTree = "<group>"; };
 		A45E5E6DCD243E4590EE1E89 /* SSHDriver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHDriver.swift; sourceTree = "<group>"; };
 		AB7E6477BF6AA5CD2AE3F533 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		C0DF960A11B39A70296B5C18 /* RemindersAccessState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemindersAccessState.swift; sourceTree = "<group>"; };
 		C4DD14E847EA76E2F0BC3C6C /* CapabilitiesTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapabilitiesTab.swift; sourceTree = "<group>"; };
 		C9CBCADD106AF6A8E7400034 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		CAE3E95E6AF56E6355785936 /* CredentialsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialsTab.swift; sourceTree = "<group>"; };
@@ -110,6 +117,8 @@
 				0757B08D76E36F77E3549A66 /* PairingClient.swift */,
 				8DE7873A141AFC515FADA42C /* ProfileEnv.swift */,
 				92E55C42EBC0D86759BA47F6 /* Redact.swift */,
+				67F3328A18BBE207ACE1F392 /* RemindersAccess+EventKit.swift */,
+				C0DF960A11B39A70296B5C18 /* RemindersAccessState.swift */,
 				2F3976E860595DD8938C9E40 /* ResultQueue.swift */,
 				21474723A4C0F931EF8B78E7 /* RunnerCore.swift */,
 				1CF739ED95538D21742A5C07 /* SessionExecutor.swift */,
@@ -154,6 +163,7 @@
 			children = (
 				5552E2FA6B2D91E22F79E87B /* ProfileEnvTests.swift */,
 				68A5A0C4F643491179D17A29 /* RedactTests.swift */,
+				27F9C6CD03A3B03FA495B8A9 /* RemindersAccessTests.swift */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -266,6 +276,8 @@
 				AB8E1B0062C3A6C833178B04 /* ProfileEnvTests.swift in Sources */,
 				641223DBE763BA4C8DBD537E /* Redact.swift in Sources */,
 				B61096DEB9EBA926F1FA181F /* RedactTests.swift in Sources */,
+				7125495770E1319FEC406B9C /* RemindersAccessState.swift in Sources */,
+				EA52DC4DCC0D983C3EC7E0B8 /* RemindersAccessTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -293,6 +305,8 @@
 				CB859BD667C5A6CD0E9001B0 /* PairingSheet.swift in Sources */,
 				9B583E873453DFE37EBD99C4 /* ProfileEnv.swift in Sources */,
 				DE9B379343D92B4FC95ECEEB /* Redact.swift in Sources */,
+				2F756EB067DE4D4E337A2F4F /* RemindersAccess+EventKit.swift in Sources */,
+				BD2EBBBCD533A34CBE183916 /* RemindersAccessState.swift in Sources */,
 				B0DA9FBB6BD550F0100AC2DE /* ResultQueue.swift in Sources */,
 				9C49F41F759E2B48EF2D8E2A /* RunnerCore.swift in Sources */,
 				3B5672C111147237E1F26414 /* SSHDriver.swift in Sources */,
@@ -343,7 +357,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -358,7 +372,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 0.1.22;
+				MARKETING_VERSION = 0.1.23;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = BrainboxRunner;
@@ -444,7 +458,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -465,7 +479,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 0.1.22;
+				MARKETING_VERSION = 0.1.23;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

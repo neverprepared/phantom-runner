@@ -26,5 +26,9 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>© Never Prepared</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>Brainbox Runner files reminders from scheduled captures on this Mac.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>Brainbox Runner files reminders from scheduled captures on this Mac.</string>
 </dict>
 </plist>

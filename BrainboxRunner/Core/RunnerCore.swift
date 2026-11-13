@@ -665,7 +665,22 @@ final class RunnerCore {
         }
         do {
             let dir = try integrationDir(name)
-            try yaml.write(to: dir.appendingPathComponent("manifest.yaml"), atomically: true, encoding: .utf8)
+            // 0600: a manifest routinely carries Secret material
+            // (stringData, env values), and the 0644 default leaves it
+            // readable by every other user on the machine. Measured: the
+            // file lands at 0644 and the chmod takes it to 0600.
+            //
+            // The chmod cannot be hoisted ahead of the write — on the first
+            // placement there is no file yet to chmod. So there IS a window
+            // between create and chmod; closing it properly needs the mode
+            // set at creation (`umask`, or open(2) with 0600), which
+            // `String.write(to:atomically:)` does not expose. Narrow and
+            // local-user-only, so left as is rather than hand-rolling the
+            // write.
+            let manifestFile = dir.appendingPathComponent("manifest.yaml")
+            try yaml.write(to: manifestFile, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes(
+                [.posixPermissions: 0o600], ofItemAtPath: manifestFile.path)
             let out = try await KubeDriver.apply(
                 context: pre.context, namespace: pre.namespace, manifestYAML: yaml)
             log.info("integration.up (k8s) done: \(name, privacy: .public)")
@@ -674,11 +689,26 @@ final class RunnerCore {
             // credential detail into. `expectSuccess: true` means a non-zero
             // exit throws instead, into the already-redacting `KubeError`, so
             // what reaches here is exit-0 warnings; those can still carry a
-            // token (an exec-plugin `--token=…`, a refresh failure). stdout is
-            // kept verbatim: it carries the created/configured lines an
-            // operator needs and nothing sensitive. Same four-way pattern in
-            // `integrationDownK8s`, `handleKubeApply` and `handleKubeDelete`.
-            return APIClient.ResultPayload(ok: true, error: nil, data: ["output": AnyEncodable(out.stdout + Redact.text(out.stderr))])
+            // token (an exec-plugin `--token=…`, a refresh failure).
+            //
+            // stdout is NOT redacted, and that is a real exposure rather than
+            // a judgement that stdout is safe. On THIS path it happens to be
+            // benign — `apply` emits `<kind>/<name> created|configured`. It is
+            // not benign on the read paths: `handleKubeGet` passes the
+            // caller's own `kinds` through, so `kinds: "secret"` returns
+            // Secret data verbatim, and even the default `deploy,sts,pod`
+            // returns object JSON whose pod templates carry plaintext
+            // `env.value` entries. `Redact` does not save us there — it keys
+            // off a name adjacent to its value, which does not match
+            // kubectl's `{"name":"X_TOKEN","value":"…"}` shape.
+            //
+            // So the protection here is the narrowness of what `apply`
+            // prints, not anything structural. Constraining `kinds` is a
+            // design decision for plan 2, deliberately not made here.
+            //
+            // Same stderr handling in `integrationDownK8s`, `handleKubeApply`
+            // and `handleKubeDelete`.
+            return APIClient.ResultPayload(ok: true, error: nil, data: ["output": AnyEncodable(Self.mergedOutput(out))])
         } catch {
             log.warning("integration.up (k8s) failed: \(String(describing: error), privacy: .public)")
             return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
@@ -740,8 +770,8 @@ final class RunnerCore {
             let out = try await KubeDriver.delete(
                 context: pre.context, namespace: pre.namespace, manifestYAML: yaml)
             log.info("integration.down (k8s) done: \(name, privacy: .public)")
-            // stderr redacted, stdout verbatim — see `integrationUpK8s`.
-            return APIClient.ResultPayload(ok: true, error: nil, data: ["output": AnyEncodable(out.stdout + Redact.text(out.stderr))])
+            // stderr redacted; stdout unredacted — see `integrationUpK8s`.
+            return APIClient.ResultPayload(ok: true, error: nil, data: ["output": AnyEncodable(Self.mergedOutput(out))])
         } catch {
             log.warning("integration.down (k8s) failed: \(String(describing: error), privacy: .public)")
             return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
@@ -826,6 +856,27 @@ final class RunnerCore {
         }
     }
 
+    /// Joins a command's two streams into the single `output` string the
+    /// apply/delete result shape carries, with stderr redacted.
+    ///
+    /// The newline matters: concatenating directly glues a stdout with no
+    /// trailing newline onto the first stderr line, producing a single
+    /// corrupted line like `configmap/x configuredWarning: ...`. kubectl
+    /// normally terminates stdout with a newline, so this is the ragged-edge
+    /// case, which is exactly the one nobody notices until it is in a log.
+    ///
+    /// Kept as ONE merged key rather than split into `output`/`stderr` on
+    /// purpose: the read paths (`handleKubeGet`, `integrationStatusK8s`)
+    /// carry separate keys because a consumer must distinguish empty-but-fine
+    /// from failed, but the apply/delete result shape is already settled and
+    /// splitting it here would be a contract change, not a formatting fix.
+    private static func mergedOutput(_ out: KubeDriver.Output) -> String {
+        let err = Redact.text(out.stderr)
+        if out.stdout.isEmpty || err.isEmpty { return out.stdout + err }
+        if out.stdout.hasSuffix("\n") { return out.stdout + err }
+        return out.stdout + "\n" + err
+    }
+
     // MARK: - Kubernetes (kube.* work-kinds)
 
     // Plan 1: a `kubectl` driver + capability flag. The runner is a dumb
@@ -861,10 +912,10 @@ final class RunnerCore {
             let out = try await KubeDriver.apply(
                 context: pre.context, namespace: pre.namespace, manifestYAML: yaml)
             log.info("kube.apply done: \(pre.namespace, privacy: .public)")
-            // stderr redacted, stdout verbatim — see `integrationUpK8s`.
+            // stderr redacted; stdout unredacted — see `integrationUpK8s`.
             return APIClient.ResultPayload(
                 ok: true, error: nil,
-                data: ["output": AnyEncodable(out.stdout + Redact.text(out.stderr))])
+                data: ["output": AnyEncodable(Self.mergedOutput(out))])
         } catch {
             log.warning("kube.apply failed: \(String(describing: error), privacy: .public)")
             return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
@@ -927,10 +978,10 @@ final class RunnerCore {
         do {
             let out = try await KubeDriver.delete(
                 context: pre.context, namespace: pre.namespace, manifestYAML: yaml)
-            // stderr redacted, stdout verbatim — see `integrationUpK8s`.
+            // stderr redacted; stdout unredacted — see `integrationUpK8s`.
             return APIClient.ResultPayload(
                 ok: true, error: nil,
-                data: ["output": AnyEncodable(out.stdout + Redact.text(out.stderr))])
+                data: ["output": AnyEncodable(Self.mergedOutput(out))])
         } catch {
             return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
         }

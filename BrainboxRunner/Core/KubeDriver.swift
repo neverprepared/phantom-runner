@@ -138,31 +138,50 @@ struct KubeDriver {
         if let stdinHandle, let stdin {
             let handle = KubeUnchecked(stdinHandle)
             DispatchQueue.global(qos: .userInitiated).async {
-                handle.value.write(stdin)
+                // `try?` on the THROWING variant, never `write(_:)`. The read
+                // end closing under us is the ordinary case, not the exotic
+                // one: `apply`/`delete` always pass stdin, and any context
+                // whose cluster is stopped makes kubectl exit before reading
+                // it. `FileHandle.write(_:)` reports that EPIPE as an
+                // ObjC exception, which Swift cannot catch — it would
+                // terminate the menu-bar app. `write(contentsOf:)` throws it
+                // as a Swift error instead, and dropping it is right here:
+                // the child is already gone, its exit status is on its way
+                // through `termination`, and that is what the caller should
+                // see rather than a write error about a doomed pipe.
+                //
+                // The throwing call is only half the fix — the kernel also
+                // sends SIGPIPE, whose default action terminates the process
+                // before any error can be returned. The app ignores SIGPIPE
+                // at startup (see `BrainboxRunnerApp.init`); without that,
+                // this line still dies.
+                try? handle.value.write(contentsOf: stdin)
                 try? handle.value.close()
             }
         }
 
-        // Drain stdout/stderr on detached tasks and take the exit status from
-        // the callback registered above, rather than blocking this task.
-        // `waitUntilExit()` and a synchronous `readDataToEndOfFile()` both
-        // park whatever thread calls them for the lifetime of the kubectl
-        // invocation; since `run()` is `async`, that thread is one of the
-        // Swift concurrency cooperative pool's bounded set, so several
-        // concurrent `run()` calls could starve it. `async let` frees the
-        // calling task's thread back to the pool while these await.
+        // Drain both pipes on libdispatch's global queue and take the exit
+        // status from the callback registered above. Nothing blocking runs on
+        // a Swift concurrency thread.
         //
-        // The two reads still run CONCURRENTLY — the deviation from the
-        // brief. Reading them sequentially deadlocks once the child writes
-        // more than the ~64KB pipe buffer to the stream read second: the
-        // parent blocks reading the first pipe while the child blocks
-        // writing the other (`kubectl get -o json` over a populated
-        // namespace routinely exceeds 64KB on stderr).
-        let outHandle = KubeUnchecked(stdoutPipe.fileHandleForReading)
-        let errHandle = KubeUnchecked(stderrPipe.fileHandleForReading)
+        // `Task.detached` is NOT the way to do this: a detached task still
+        // runs on the global concurrent executor, which is the same bounded
+        // cooperative pool — one thread per core, and it does not grow when a
+        // thread blocks. Draining there parked TWO pool threads per `run()`
+        // in `readDataToEndOfFile()`, so it freed the caller's task only by
+        // consuming more of the resource it was protecting. `DispatchQueue`
+        // has its own pool, which does grow, and is where a blocking read
+        // belongs — the same reason the stdin writer above uses it.
+        //
+        // The two reads still run CONCURRENTLY with each other. Reading them
+        // sequentially deadlocks once the child writes more than the ~64KB
+        // pipe buffer to the stream read second: the parent blocks reading
+        // the first pipe while the child blocks writing the other (`kubectl
+        // get -o json` over a populated namespace routinely exceeds 64KB on
+        // stderr).
         async let exitCode: Int32 = termination.exitStatus()
-        async let outData = Task.detached { outHandle.value.readDataToEndOfFile() }.value
-        async let errData = Task.detached { errHandle.value.readDataToEndOfFile() }.value
+        async let outData = drain(KubeUnchecked(stdoutPipe.fileHandleForReading))
+        async let errData = drain(KubeUnchecked(stderrPipe.fileHandleForReading))
 
         let (stdoutData, stderrData, code) = await (outData, errData, exitCode)
 
@@ -175,6 +194,20 @@ struct KubeDriver {
             throw KubeError.exit(code: out.exitCode, stderr: out.stderr, cmd: args)
         }
         return out
+    }
+
+    /// Reads one pipe to EOF on a `DispatchQueue` thread, bridged back as a
+    /// suspension. The blocking read is deliberately NOT on a Swift
+    /// concurrency thread — see the call site.
+    ///
+    /// The continuation is resumed exactly once: `readDataToEndOfFile()`
+    /// returns or raises, and the queue block runs once per call.
+    private static func drain(_ handle: KubeUnchecked<FileHandle>) async -> Data {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                continuation.resume(returning: handle.value.readDataToEndOfFile())
+            }
+        }
     }
 
     // MARK: - Object operations

@@ -18,6 +18,19 @@ final class KubeDriverTests: XCTestCase {
         return bin
     }
 
+    override class func setUp() {
+        super.setUp()
+        // The app does this in `BrainboxRunnerApp.init()`, but this bundle
+        // compiles the units under test directly instead of hosting the app,
+        // so that initializer never runs here. Without replicating it,
+        // `test_run_survivesAChildThatExitsWithoutReadingAnOversizedStdin`
+        // takes the test process down on SIGPIPE before the write can return
+        // EPIPE. NOTE: this means the test exercises the driver's EPIPE
+        // handling, NOT the app's call site — that line is verified by
+        // inspection only.
+        signal(SIGPIPE, SIG_IGN)
+    }
+
     override func tearDown() {
         unsetenv("PHANTOM_KUBECTL")
         super.tearDown()
@@ -68,18 +81,108 @@ final class KubeDriverTests: XCTestCase {
         XCTAssertEqual(out.exitCode, 1)
     }
 
-    func test_run_withNilStdin_doesNotInheritHostStdinAndCompletesPromptly() async throws {
-        // A fake kubectl that reads stdin to EOF before producing output.
-        // If `run()` left `proc.standardInput` unset when `stdin` is nil, the
-        // child inherits the host process's real stdin, which never closes —
-        // `cat` would then block forever instead of seeing EOF immediately.
-        let bin = try fakeKubectl(script: "cat; echo done")
-        setenv("PHANTOM_KUBECTL", bin.path, 1)
-        let out = try await withTimeout(seconds: 10) {
-            try await KubeDriver.run(["get", "ns"], stdin: nil, expectSuccess: true)
+    func test_run_withNilStdin_doesNotInheritHostStdinAndCompletesPromptly() {
+        // This test used to depend on the HOST process's stdin, which made it
+        // unable to fail for its stated purpose: under CI stdin is
+        // /dev/null, so `cat` sees EOF immediately whether or not `run()`
+        // binds the null device, and the test passed against the very bug it
+        // names. (The fifth test of that shape found in this plan.)
+        //
+        // So it now BUILDS the hazard instead of hoping for it: fd 0 is
+        // redirected to the read end of a pipe whose write end this test
+        // holds open for the duration. A child that inherits fd 0 therefore
+        // can NEVER see EOF, on every machine, CI included — so if `run()`
+        // stops binding `FileHandle.nullDevice`, `cat` blocks forever and
+        // this test fails on its expectation rather than passing silently.
+        //
+        // Sync + `wait(for:)` rather than `async` + `withTimeout`, because a
+        // child blocked on an inherited fd is not cancellable: awaiting it
+        // directly would hang the whole suite instead of failing this test.
+        var fds: [Int32] = [-1, -1]
+        XCTAssertEqual(pipe(&fds), 0, "could not create the stand-in stdin pipe")
+        let savedStdin = dup(0)
+        XCTAssertGreaterThanOrEqual(savedStdin, 0, "could not save the host stdin")
+        XCTAssertGreaterThanOrEqual(dup2(fds[0], 0), 0, "could not redirect stdin")
+        defer {
+            dup2(savedStdin, 0)   // restore before anything else reads stdin
+            close(savedStdin)
+            close(fds[0])
+            close(fds[1])         // also unblocks a child still stuck on it
         }
-        XCTAssertEqual(out.stdout.trimmingCharacters(in: .whitespacesAndNewlines), "done")
+
+        let bin: URL
+        do { bin = try fakeKubectl(script: "cat; echo done") } catch {
+            return XCTFail("could not stage the fake kubectl: \(error)")
+        }
+        setenv("PHANTOM_KUBECTL", bin.path, 1)
+
+        let finished = expectation(description: "run() returned")
+        Task {
+            do {
+                let out = try await KubeDriver.run(
+                    ["get", "ns"], stdin: nil, expectSuccess: true)
+                XCTAssertEqual(
+                    out.stdout.trimmingCharacters(in: .whitespacesAndNewlines), "done")
+            } catch {
+                XCTFail("run() threw: \(error)")
+            }
+            finished.fulfill()
+        }
+        wait(for: [finished], timeout: 10)
     }
+
+    func test_run_survivesAChildThatExitsWithoutReadingAnOversizedStdin() async throws {
+        // The EPIPE case, and the most ordinary k8s failure on a laptop: an
+        // advertised context whose cluster is stopped. kubectl exits before
+        // reading stdin, the read end closes, and the detached writer loses
+        // the race. `FileHandle.write(_:)` would report that as an ObjC
+        // exception Swift cannot catch, killing the menu-bar process; SIGPIPE
+        // would kill it even sooner. The payload is >64KB so the write cannot
+        // complete into the pipe buffer and must actually hit the closed read
+        // end.
+        //
+        // The child closes fd 0 explicitly (`exec 0<&-`) rather than just
+        // exiting, so the read end is gone while the oversized write is still
+        // in flight. Without that the writer usually wins the race against a
+        // fast `exit 1` and the regression hides: reverting the fix with a
+        // plain `exit 1` script still passed. With the explicit close,
+        // reverting to `write(_:)` fails here every time.
+        //
+        // Inside the test bundle XCTest traps the ObjC exception and reports
+        // it as a failure. In the APP nothing traps it: measured standalone,
+        // `write(_:)` aborts the process (exit 134) and an un-ignored SIGPIPE
+        // kills it outright (exit 141).
+        let bin = try fakeKubectl(script: "exec 0<&-; echo nope 1>&2; exit 1")
+        setenv("PHANTOM_KUBECTL", bin.path, 1)
+        let oversized = Data(repeating: UInt8(ascii: "y"), count: 512 * 1024)
+
+        let out = try await withTimeout(seconds: 20) {
+            try await KubeDriver.run(
+                ["apply", "-f", "-"], stdin: oversized, expectSuccess: false)
+        }
+        XCTAssertEqual(out.exitCode, 1)
+        XCTAssertEqual(out.stderr.trimmingCharacters(in: .whitespacesAndNewlines), "nope")
+    }
+
+    // NO TEST for "the drains do not park cooperative-pool threads", on
+    // purpose. The construction is correct by inspection — no blocking call
+    // is submitted to the cooperative executor at all — but it could not be
+    // turned into a test that can FAIL, and this plan has already shipped
+    // five tests that passed against the bug they named.
+    //
+    // Measured in this very bundle, worst delay of an unrelated cooperative
+    // heartbeat while N `run()` calls drained children that sleep 1s:
+    //
+    //   N = 4x cores (72):   DispatchQueue 0.0058s   Task.detached 0.0051s
+    //   N = 8x cores (144):  DispatchQueue 0.0049s   Task.detached 0.0054s
+    //
+    // i.e. indistinguishable. The hazard is real in isolation — the same
+    // heartbeat against 8x-core `Task.detached { Thread.sleep(1) }` bodies
+    // stalls 8.034s versus 0.005s via `DispatchQueue.global` — but libdispatch
+    // grows its thread pool for blocked work, and when drain starts are spread
+    // out by each invocation's own process spawn it keeps ahead of them, so no
+    // realistic kubectl load exposes it. A threshold that separated the two
+    // here would be measuring noise.
 
     func test_errorDescription_redactsCredentialsInStderr() {
         // Pin that redaction runs BEFORE truncation, not just that it runs.

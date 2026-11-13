@@ -200,8 +200,23 @@ struct KubeDriver {
     /// suspension. The blocking read is deliberately NOT on a Swift
     /// concurrency thread — see the call site.
     ///
-    /// The continuation is resumed exactly once: `readDataToEndOfFile()`
-    /// returns or raises, and the queue block runs once per call.
+    /// Exactly-once holds ON THE RETURN PATH: the queue block runs once per
+    /// call, and `resume` is its only statement.
+    ///
+    /// It does NOT hold if `readDataToEndOfFile()` RAISES. That is an ObjC
+    /// exception (a bad or already-closed fd), it unwinds past `resume`, and
+    /// the continuation is then abandoned. What follows depends on who is
+    /// catching: with nothing installed the uncaught exception aborts the
+    /// process, and anywhere it is trapped — XCTest does — `run()` awaits a
+    /// continuation that will never be resumed and hangs forever. Both
+    /// outcomes were observed from the sibling `write` path during the EPIPE
+    /// work: abort standalone, trapped under XCTest.
+    ///
+    /// Left as is deliberately: the only handles passed here are the read
+    /// ends of pipes this function just created and has not closed, so the
+    /// raise is unreachable rather than merely unlikely. Written down
+    /// because the next person to pass a handle from somewhere else needs to
+    /// know this bridge has no error path.
     private static func drain(_ handle: KubeUnchecked<FileHandle>) async -> Data {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {

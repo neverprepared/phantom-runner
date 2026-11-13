@@ -178,11 +178,14 @@ final class KubeDriverTests: XCTestCase {
     //
     // i.e. indistinguishable. The hazard is real in isolation — the same
     // heartbeat against 8x-core `Task.detached { Thread.sleep(1) }` bodies
-    // stalls 8.034s versus 0.005s via `DispatchQueue.global` — but libdispatch
-    // grows its thread pool for blocked work, and when drain starts are spread
-    // out by each invocation's own process spawn it keeps ahead of them, so no
-    // realistic kubectl load exposes it. A threshold that separated the two
-    // here would be measuring noise.
+    // stalls 8.034s versus 0.005s via `DispatchQueue.global`, which is the
+    // signature of a width-limited pool that does NOT grow. Under kubectl
+    // load it simply could not be reproduced under this probe design: the
+    // heartbeat may not have been contending for the same width, and the
+    // children exited before saturation. That is a negative result about the
+    // probe, NOT evidence that the hazard needs more load than kubectl
+    // produces. A threshold separating the two columns above would therefore
+    // be measuring this probe's noise rather than the property.
 
     func test_errorDescription_redactsCredentialsInStderr() {
         // Pin that redaction runs BEFORE truncation, not just that it runs.

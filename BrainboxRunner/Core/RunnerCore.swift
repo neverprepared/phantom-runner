@@ -669,7 +669,16 @@ final class RunnerCore {
             let out = try await KubeDriver.apply(
                 context: pre.context, namespace: pre.namespace, manifestYAML: yaml)
             log.info("integration.up (k8s) done: \(name, privacy: .public)")
-            return APIClient.ResultPayload(ok: true, error: nil, data: ["output": AnyEncodable(out.stdout + out.stderr)])
+            // stderr is redacted wherever it leaves this process toward the
+            // control plane — it is the stream kubectl echoes server and
+            // credential detail into. `expectSuccess: true` means a non-zero
+            // exit throws instead, into the already-redacting `KubeError`, so
+            // what reaches here is exit-0 warnings; those can still carry a
+            // token (an exec-plugin `--token=…`, a refresh failure). stdout is
+            // kept verbatim: it carries the created/configured lines an
+            // operator needs and nothing sensitive. Same four-way pattern in
+            // `integrationDownK8s`, `handleKubeApply` and `handleKubeDelete`.
+            return APIClient.ResultPayload(ok: true, error: nil, data: ["output": AnyEncodable(out.stdout + Redact.text(out.stderr))])
         } catch {
             log.warning("integration.up (k8s) failed: \(String(describing: error), privacy: .public)")
             return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
@@ -731,7 +740,8 @@ final class RunnerCore {
             let out = try await KubeDriver.delete(
                 context: pre.context, namespace: pre.namespace, manifestYAML: yaml)
             log.info("integration.down (k8s) done: \(name, privacy: .public)")
-            return APIClient.ResultPayload(ok: true, error: nil, data: ["output": AnyEncodable(out.stdout + out.stderr)])
+            // stderr redacted, stdout verbatim — see `integrationUpK8s`.
+            return APIClient.ResultPayload(ok: true, error: nil, data: ["output": AnyEncodable(out.stdout + Redact.text(out.stderr))])
         } catch {
             log.warning("integration.down (k8s) failed: \(String(describing: error), privacy: .public)")
             return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
@@ -851,9 +861,10 @@ final class RunnerCore {
             let out = try await KubeDriver.apply(
                 context: pre.context, namespace: pre.namespace, manifestYAML: yaml)
             log.info("kube.apply done: \(pre.namespace, privacy: .public)")
+            // stderr redacted, stdout verbatim — see `integrationUpK8s`.
             return APIClient.ResultPayload(
                 ok: true, error: nil,
-                data: ["output": AnyEncodable(out.stdout + out.stderr)])
+                data: ["output": AnyEncodable(out.stdout + Redact.text(out.stderr))])
         } catch {
             log.warning("kube.apply failed: \(String(describing: error), privacy: .public)")
             return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
@@ -916,9 +927,10 @@ final class RunnerCore {
         do {
             let out = try await KubeDriver.delete(
                 context: pre.context, namespace: pre.namespace, manifestYAML: yaml)
+            // stderr redacted, stdout verbatim — see `integrationUpK8s`.
             return APIClient.ResultPayload(
                 ok: true, error: nil,
-                data: ["output": AnyEncodable(out.stdout + out.stderr)])
+                data: ["output": AnyEncodable(out.stdout + Redact.text(out.stderr))])
         } catch {
             return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
         }

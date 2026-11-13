@@ -13,6 +13,8 @@ final class SettingsStore: ObservableObject {
         static let dockerEnabled = "capabilities.docker.enabled"
         static let utmEnabled = "capabilities.utm.enabled"
         static let hostExecEnabled = "capabilities.hostexec.enabled"
+        static let k8sEnabled = "capabilities.k8s.enabled"
+        static let kubeContexts = "capabilities.k8s.contexts"
         static let ollamaEnabled = "capabilities.ollama.enabled"
         static let autoUpdate = "autoUpdate"
         static let maxConcurrent = "maxConcurrent"
@@ -56,6 +58,15 @@ final class SettingsStore: ObservableObject {
 
     @Published var utmEnabled: Bool {
         didSet { UserDefaults.standard.set(utmEnabled, forKey: Key.utmEnabled) }
+    }
+    @Published var k8sEnabled: Bool {
+        didSet { UserDefaults.standard.set(k8sEnabled, forKey: Key.k8sEnabled) }
+    }
+
+    /// Kube-contexts this machine can reach. Advertised so the control plane
+    /// can place work on a named cluster instead of guessing a current-context.
+    @Published var kubeContexts: [String] {
+        didSet { UserDefaults.standard.set(kubeContexts, forKey: Key.kubeContexts) }
     }
     @Published var ollamaEnabled: Bool {
         didSet { UserDefaults.standard.set(ollamaEnabled, forKey: Key.ollamaEnabled) }
@@ -112,6 +123,10 @@ final class SettingsStore: ObservableObject {
         self.tags = (d.array(forKey: Key.tags) as? [String]) ?? []
         self.dockerEnabled = d.object(forKey: Key.dockerEnabled) as? Bool ?? true
         self.utmEnabled = d.object(forKey: Key.utmEnabled) as? Bool ?? true
+        // Defaults FALSE, like host_exec and unlike docker: a mac without k3d
+        // must not advertise a capability it cannot honour.
+        self.k8sEnabled = d.object(forKey: Key.k8sEnabled) as? Bool ?? false
+        self.kubeContexts = d.object(forKey: Key.kubeContexts) as? [String] ?? []
         // Opt-in, not opt-out: an existing runner must not gain host-exec
         // silently on upgrade.
         self.hostExecEnabled = d.object(forKey: Key.hostExecEnabled) as? Bool ?? false

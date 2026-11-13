@@ -84,6 +84,10 @@ final class RunnerCore {
             // on a machine whose owner has not opted in, instead of dispatching
             // it and collecting a failure.
             "host_exec": settings.hostExecEnabled,
+            // Same contract for Kubernetes: this machine has kubectl and at
+            // least one reachable context. Deliberately NOT implied by docker
+            // — OrbStack being present says nothing about a cluster existing.
+            "k8s": KubeCapability.isAdvertised(enabled: settings.k8sEnabled, contexts: settings.kubeContexts),
         ]
         paused = false
 

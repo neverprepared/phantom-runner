@@ -131,6 +131,23 @@ struct CapabilitiesTab: View {
                 Toggle("utm (virtual machines)", isOn: $state.settings.utmEnabled)
                 Toggle("host commands (scheduled work on this Mac)", isOn: $state.settings.hostExecEnabled)
                 Toggle("ollama (local LLM inference)", isOn: $state.settings.ollamaEnabled)
+                Toggle("Kubernetes (k3d / k3s)", isOn: $state.settings.k8sEnabled)
+                Text("Contexts this Mac can reach, comma separated (e.g. k3d-phantom-local). The capability is advertised only when at least one context is listed — an empty list means the control plane will not place Kubernetes work here.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                TextField(
+                    "k3d-phantom-local",
+                    text: Binding(
+                        get: { state.settings.kubeContexts.joined(separator: ", ") },
+                        set: { raw in
+                            state.settings.kubeContexts = raw
+                                .split(separator: ",")
+                                .map { $0.trimmingCharacters(in: .whitespaces) }
+                                .filter { !$0.isEmpty }
+                        }
+                    )
+                )
+                .disabled(!state.settings.k8sEnabled)
                 if state.settings.hostExecEnabled {
                     RemindersAccessRow()
                 }

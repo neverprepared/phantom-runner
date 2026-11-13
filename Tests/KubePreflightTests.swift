@@ -96,19 +96,6 @@ final class KubePreflightTests: XCTestCase {
         )
     }
 
-    /// A blank/whitespace-only entry riding along in `advertised` (the same
-    /// shape `KubeCapability` guards against for the enabled/empty-list
-    /// check) must not itself satisfy the membership check.
-    func test_blankAdvertisedEntry_doesNotMatchEmptyContext() {
-        let result = KubePreflight.resolve(
-            enabled: true,
-            advertised: ["", "   ", "k3d-phantom-local"],
-            context: "",
-            namespace: "default"
-        )
-        XCTAssertEqual(result, KubePreflight.Outcome.failure("context required"))
-    }
-
     /// An advertised entry with incidental surrounding whitespace (e.g. a
     /// stale UserDefaults value from before the settings UI trimmed on
     /// input) still matches the trimmed context, consistent with how

@@ -727,15 +727,35 @@ final class RunnerCore {
         case .failure(let why):
             return APIClient.ResultPayload(ok: false, error: why, data: nil)
         }
-        let kinds = (payload["kinds"]?.value as? String) ?? "deploy,sts,pod"
+        // A present-but-blank `kinds` (e.g. `""`) is as absent as a missing
+        // key — without this, it passes straight through and builds
+        // `kubectl get "" -o json`, which is not the "use the default kinds"
+        // behavior the payload contract promises.
+        let kinds = (payload["kinds"]?.value as? String).flatMap { $0.isEmpty ? nil : $0 }
+            ?? "deploy,sts,pod"
         let selector = payload["selector"]?.value as? String
         do {
             let out = try await KubeDriver.get(
                 context: pre.context, namespace: pre.namespace,
                 kinds: kinds, selector: selector)
+            // `expectSuccess: false`: an absent object (a legitimate
+            // `NotFound`, which still exits non-zero) is not an error here,
+            // so `ok` stays true on any exit code. But that means `ok: true,
+            // output: ""` is ALSO what a bad namespace or an expired
+            // credential looks like — indistinguishable from "nothing
+            // matched" unless the caller can see the exit code and stderr
+            // too. Carry both so a consumer (Task 5's status reduction, or
+            // the router) can tell "empty" from "failed" without guessing
+            // from stderr text. stderr goes through `Redact` — kubectl can
+            // echo credentials into it, same reason `KubeError.description`
+            // redacts.
             return APIClient.ResultPayload(
                 ok: true, error: nil,
-                data: ["output": AnyEncodable(out.stdout)])
+                data: [
+                    "output": AnyEncodable(out.stdout),
+                    "exit_code": AnyEncodable(Int(out.exitCode)),
+                    "stderr": AnyEncodable(Redact.text(out.stderr)),
+                ])
         } catch {
             return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
         }

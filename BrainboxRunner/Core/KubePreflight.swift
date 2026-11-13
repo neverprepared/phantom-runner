@@ -26,13 +26,22 @@ enum KubePreflight {
         case failure(String)
     }
 
-    /// `advertised` entries are trimmed/blank-filtered the same way
-    /// `KubeCapability.isAdvertised` treats `settings.kubeContexts`
-    /// (`.whitespacesAndNewlines`), so a stray blank or untrimmed entry in
-    /// the stored list can neither widen nor narrow what matches here. The
-    /// incoming `context` from the payload is matched verbatim — it is
-    /// attacker/control-plane-supplied input, not a settings field, so it is
-    /// never trimmed before the membership check.
+    /// `advertised` entries are trimmed the same way `KubeCapability
+    /// .isAdvertised` treats `settings.kubeContexts` (`.whitespacesAndNewlines`),
+    /// so a stored context with incidental surrounding whitespace (e.g. a
+    /// stale UserDefaults value predating the settings UI trimming on input)
+    /// still matches a well-formed `context` from the payload. The incoming
+    /// `context` itself is matched verbatim — it is attacker/control-plane-
+    /// supplied input, not a settings field, so it is never trimmed.
+    ///
+    /// The accompanying blank filter is defense-in-depth, not a reachable
+    /// path: the `context` guard just above already refuses an empty
+    /// `context` before this runs, so a normalized-to-empty `advertised`
+    /// entry could only ever match an empty `context`, which can't reach
+    /// here. It stays so a future reordering of these guards doesn't quietly
+    /// make a blank entry matchable; it is intentionally untested for that
+    /// reason — there is no reachable `context` value that would let a test
+    /// distinguish "filtered" from "not filtered" here.
     static func resolve(
         enabled: Bool,
         advertised: [String],

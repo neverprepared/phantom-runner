@@ -102,34 +102,45 @@ struct KubeDriver {
             }
         }
 
-        // Drain stdout and stderr CONCURRENTLY, each on its own queue, and
-        // join both before waiting on exit. Reading them sequentially
-        // deadlocks once the child writes more than the ~64KB pipe buffer to
-        // the stream read second: the parent blocks reading the first pipe
-        // while the child blocks writing the other (`kubectl get -o json`
-        // over a populated namespace routinely exceeds 64KB on stderr).
-        let outputGroup = DispatchGroup()
-        var outData = Data()
-        var errData = Data()
-
-        outputGroup.enter()
-        DispatchQueue.global(qos: .userInitiated).async {
-            outData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-            outputGroup.leave()
+        // Wait for exit via the termination callback instead of
+        // `waitUntilExit()`, and drain stdout/stderr on detached child tasks
+        // instead of blocking reads on this task. `waitUntilExit()` and a
+        // synchronous `readDataToEndOfFile()` both park whatever thread call
+        // them for the lifetime of the kubectl invocation; since `run()` is
+        // `async`, that thread is one of the Swift concurrency cooperative
+        // pool's bounded set, so several concurrent `run()` calls could
+        // starve it. Structured concurrency (`async let`) frees the calling
+        // task's thread back to the pool while these await.
+        //
+        // The two reads still run CONCURRENTLY — the deviation from the
+        // brief. Reading them sequentially deadlocks once the child writes
+        // more than the ~64KB pipe buffer to the stream read second: the
+        // parent blocks reading the first pipe while the child blocks
+        // writing the other (`kubectl get -o json` over a populated
+        // namespace routinely exceeds 64KB on stderr).
+        //
+        // Registering `terminationHandler` after `run()` is safe: Foundation
+        // invokes it immediately, from wherever it's set, if the process has
+        // already exited by that point — there is no race with a
+        // fast-exiting child.
+        async let exitCode: Int32 = withCheckedContinuation { continuation in
+            proc.terminationHandler = { p in
+                continuation.resume(returning: p.terminationStatus)
+            }
         }
-        outputGroup.enter()
-        DispatchQueue.global(qos: .userInitiated).async {
-            errData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
-            outputGroup.leave()
-        }
-        outputGroup.wait()
+        async let outData = Task.detached {
+            stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+        }.value
+        async let errData = Task.detached {
+            stderrPipe.fileHandleForReading.readDataToEndOfFile()
+        }.value
 
-        proc.waitUntilExit()
+        let (stdoutData, stderrData, code) = await (outData, errData, exitCode)
 
         let out = Output(
-            stdout: String(decoding: outData, as: UTF8.self),
-            stderr: String(decoding: errData, as: UTF8.self),
-            exitCode: proc.terminationStatus
+            stdout: String(decoding: stdoutData, as: UTF8.self),
+            stderr: String(decoding: stderrData, as: UTF8.self),
+            exitCode: code
         )
         if expectSuccess && out.exitCode != 0 {
             throw KubeError.exit(code: out.exitCode, stderr: out.stderr, cmd: args)

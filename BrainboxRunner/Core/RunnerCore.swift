@@ -402,6 +402,12 @@ final class RunnerCore {
             return await handleIntegrationDown(payload: work.payload)
         case "integration.status":
             return await handleIntegrationStatus(payload: work.payload)
+        case "kube.apply":
+            return await handleKubeApply(payload: work.payload)
+        case "kube.get":
+            return await handleKubeGet(payload: work.payload)
+        case "kube.delete":
+            return await handleKubeDelete(payload: work.payload)
         case "platform.ps":
             return await handlePlatformPs(payload: work.payload)
         case "platform.action":
@@ -664,6 +670,94 @@ final class RunnerCore {
                 "running": AnyEncodable(running),
                 "services": AnyEncodable(out.stdout),
             ])
+        } catch {
+            return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
+        }
+    }
+
+    // MARK: - Kubernetes (kube.* work-kinds)
+
+    // Plan 1: a `kubectl` driver + capability flag. The runner is a dumb
+    // executor here too — desired state lives in the control plane, there is
+    // no reconcile loop. `KubePreflight.resolve` (Foundation-only, unit
+    // tested directly in `KubePreflightTests`) holds the whole gating
+    // decision; this just supplies it the live settings and switches once on
+    // the result rather than the brief's double-evaluated guard/if pair.
+
+    private func kubePreflight(
+        payload: [String: AnyDecodable]
+    ) -> KubePreflight.Outcome {
+        KubePreflight.resolve(
+            enabled: owner?.settings.k8sEnabled == true,
+            advertised: owner?.settings.kubeContexts ?? [],
+            context: payload["context"]?.value as? String,
+            namespace: payload["namespace"]?.value as? String
+        )
+    }
+
+    private func handleKubeApply(payload: [String: AnyDecodable]) async -> APIClient.ResultPayload {
+        let pre: KubePreflight.Target
+        switch kubePreflight(payload: payload) {
+        case .success(let target):
+            pre = target
+        case .failure(let why):
+            return APIClient.ResultPayload(ok: false, error: why, data: nil)
+        }
+        guard let yaml = payload["manifest_yaml"]?.value as? String, !yaml.isEmpty else {
+            return APIClient.ResultPayload(ok: false, error: "manifest_yaml required", data: nil)
+        }
+        do {
+            let out = try await KubeDriver.apply(
+                context: pre.context, namespace: pre.namespace, manifestYAML: yaml)
+            log.info("kube.apply done: \(pre.namespace, privacy: .public)")
+            return APIClient.ResultPayload(
+                ok: true, error: nil,
+                data: ["output": AnyEncodable(out.stdout + out.stderr)])
+        } catch {
+            log.warning("kube.apply failed: \(String(describing: error), privacy: .public)")
+            return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
+        }
+    }
+
+    private func handleKubeGet(payload: [String: AnyDecodable]) async -> APIClient.ResultPayload {
+        let pre: KubePreflight.Target
+        switch kubePreflight(payload: payload) {
+        case .success(let target):
+            pre = target
+        case .failure(let why):
+            return APIClient.ResultPayload(ok: false, error: why, data: nil)
+        }
+        let kinds = (payload["kinds"]?.value as? String) ?? "deploy,sts,pod"
+        let selector = payload["selector"]?.value as? String
+        do {
+            let out = try await KubeDriver.get(
+                context: pre.context, namespace: pre.namespace,
+                kinds: kinds, selector: selector)
+            return APIClient.ResultPayload(
+                ok: true, error: nil,
+                data: ["output": AnyEncodable(out.stdout)])
+        } catch {
+            return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
+        }
+    }
+
+    private func handleKubeDelete(payload: [String: AnyDecodable]) async -> APIClient.ResultPayload {
+        let pre: KubePreflight.Target
+        switch kubePreflight(payload: payload) {
+        case .success(let target):
+            pre = target
+        case .failure(let why):
+            return APIClient.ResultPayload(ok: false, error: why, data: nil)
+        }
+        guard let yaml = payload["manifest_yaml"]?.value as? String, !yaml.isEmpty else {
+            return APIClient.ResultPayload(ok: false, error: "manifest_yaml required", data: nil)
+        }
+        do {
+            let out = try await KubeDriver.delete(
+                context: pre.context, namespace: pre.namespace, manifestYAML: yaml)
+            return APIClient.ResultPayload(
+                ok: true, error: nil,
+                data: ["output": AnyEncodable(out.stdout + out.stderr)])
         } catch {
             return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
         }

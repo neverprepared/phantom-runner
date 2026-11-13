@@ -60,7 +60,17 @@ final class RunnerCore {
         let name = settings.runnerName.isEmpty ? "runner" : settings.runnerName
         let machineID = settings.machineID
         let host = settings.runnerHost.isEmpty ? nil : settings.runnerHost
-        let tags = settings.tags
+        // Fold the advertised kube contexts into tags: a bool capability can
+        // say "this machine runs k8s" but can't name which cluster, and the
+        // control plane needs the context name to build a request
+        // KubePreflight will accept (it refuses any context not advertised
+        // here). Tags already flow unmodified through registration, so this
+        // needs no protocol change.
+        let tags = KubeCapability.advertisedTags(
+            operatorTags: settings.tags,
+            enabled: settings.k8sEnabled,
+            contexts: settings.kubeContexts
+        )
         let maxConcurrent = settings.maxConcurrent
 
         // Start the local Ollama HTTPS proxy if (a) the user enabled the

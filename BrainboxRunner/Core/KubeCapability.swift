@@ -19,4 +19,30 @@ enum KubeCapability {
         guard enabled else { return false }
         return contexts.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     }
+
+    /// Derives the tag set `RunnerCore` should advertise at registration: the
+    /// operator's own tags, in their original order, followed by one
+    /// `kube:<context>` entry per advertised context.
+    ///
+    /// A bool capability (`"k8s": true`) can say a machine runs Kubernetes
+    /// but cannot name which cluster — the control plane needs the context
+    /// name itself to build a placement request `KubePreflight` will accept,
+    /// since preflight refuses any context the runner did not advertise.
+    /// Tags already flow unmodified through registration, so folding the
+    /// context names into tags needs no protocol change.
+    static func advertisedTags(operatorTags: [String], enabled: Bool, contexts: [String]) -> [String] {
+        guard enabled else { return operatorTags }
+
+        var seen = Set(operatorTags)
+        var result = operatorTags
+        for context in contexts {
+            let trimmed = context.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            let tag = "kube:\(trimmed)"
+            guard !seen.contains(tag) else { continue }
+            seen.insert(tag)
+            result.append(tag)
+        }
+        return result
+    }
 }

@@ -168,6 +168,46 @@ struct KubeDriver {
         }
         return out
     }
+
+    // MARK: - Object operations
+
+    /// `kubectl --context=<ctx> -n <ns> apply -f -`, manifest on STDIN.
+    /// Idempotent, so a retried placement is safe — unlike `docker create`,
+    /// which can leave an orphaned half-created container.
+    static func apply(
+        context: String, namespace: String, manifestYAML: String
+    ) async throws -> Output {
+        try await run(
+            ["--context=\(context)", "-n", namespace, "apply", "-f", "-"],
+            stdin: Data(manifestYAML.utf8),
+            expectSuccess: true
+        )
+    }
+
+    /// `kubectl --context=<ctx> -n <ns> get <kinds> -o json [-l <selector>]`.
+    /// Non-fatal: an absent object means "not running", not an error.
+    static func get(
+        context: String, namespace: String, kinds: String, selector: String?
+    ) async throws -> Output {
+        var args = ["--context=\(context)", "-n", namespace, "get", kinds, "-o", "json"]
+        if let selector, !selector.isEmpty {
+            args += ["-l", selector]
+        }
+        return try await run(args, stdin: nil, expectSuccess: false)
+    }
+
+    /// `kubectl --context=<ctx> -n <ns> delete -f - --ignore-not-found=true`.
+    /// Already-absent objects satisfy desired=off rather than failing.
+    static func delete(
+        context: String, namespace: String, manifestYAML: String
+    ) async throws -> Output {
+        try await run(
+            ["--context=\(context)", "-n", namespace, "delete", "-f", "-",
+             "--ignore-not-found=true"],
+            stdin: Data(manifestYAML.utf8),
+            expectSuccess: true
+        )
+    }
 }
 
 

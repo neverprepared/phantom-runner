@@ -235,6 +235,77 @@ final class KubeDriverTests: XCTestCase {
     }
 }
 
+extension KubeDriverTests {
+
+    /// A fake kubectl that prints its own argv, so we can assert the exact
+    /// command line the helpers build.
+    private func argvEchoingKubectl() throws -> URL {
+        try fakeKubectl(script: #"for a in "$@"; do echo "$a"; done"#)
+    }
+
+    func test_apply_passesManifestOnStdinNotArgv() async throws {
+        let bin = try fakeKubectl(script: #"for a in "$@"; do echo "ARG:$a"; done; cat"#)
+        setenv("PHANTOM_KUBECTL", bin.path, 1)
+        let manifest = "kind: Secret\nstringData:\n  TOKEN: s3cret\n"
+        let out = try await KubeDriver.apply(
+            context: "k3d-phantom-local", namespace: "phantom-system",
+            manifestYAML: manifest)
+        // The secret must appear only in the stdin echo, never in the argv.
+        let argvLines = out.stdout.split(separator: "\n").filter { $0.hasPrefix("ARG:") }
+        XCTAssertFalse(argvLines.joined().contains("s3cret"))
+        XCTAssertTrue(out.stdout.contains("TOKEN: s3cret"))
+        XCTAssertTrue(argvLines.contains("ARG:--context=k3d-phantom-local"))
+        XCTAssertTrue(argvLines.contains("ARG:-f"))
+        XCTAssertTrue(argvLines.contains("ARG:-"))
+    }
+
+    func test_get_buildsJSONQueryWithSelector() async throws {
+        let bin = try argvEchoingKubectl()
+        setenv("PHANTOM_KUBECTL", bin.path, 1)
+        let out = try await KubeDriver.get(
+            context: "phantom-shared", namespace: "phantom-system",
+            kinds: "deploy,sts,pod", selector: "app=kroki")
+        let argv = out.stdout.split(separator: "\n").map(String.init)
+        XCTAssertTrue(argv.contains("--context=phantom-shared"))
+        XCTAssertTrue(argv.contains("-n"))
+        XCTAssertTrue(argv.contains("phantom-system"))
+        XCTAssertTrue(argv.contains("deploy,sts,pod"))
+        XCTAssertTrue(argv.contains("-o"))
+        XCTAssertTrue(argv.contains("json"))
+        XCTAssertTrue(argv.contains("-l"))
+        XCTAssertTrue(argv.contains("app=kroki"))
+    }
+
+    func test_get_omitsSelectorFlagWhenNil() async throws {
+        let bin = try argvEchoingKubectl()
+        setenv("PHANTOM_KUBECTL", bin.path, 1)
+        let out = try await KubeDriver.get(
+            context: "phantom-shared", namespace: "phantom-system",
+            kinds: "pod", selector: nil)
+        XCTAssertFalse(out.stdout.split(separator: "\n").map(String.init).contains("-l"))
+    }
+
+    func test_get_doesNotThrowWhenNothingFound() async throws {
+        // An absent object is "not running", not an error — status must be
+        // readable for an integration that was never placed here.
+        let bin = try fakeKubectl(script: "echo 'no resources found' 1>&2; exit 1")
+        setenv("PHANTOM_KUBECTL", bin.path, 1)
+        let out = try await KubeDriver.get(
+            context: "c", namespace: "n", kinds: "pod", selector: nil)
+        XCTAssertEqual(out.exitCode, 1)
+    }
+
+    func test_delete_ignoresMissingObjects() async throws {
+        let bin = try argvEchoingKubectl()
+        setenv("PHANTOM_KUBECTL", bin.path, 1)
+        let out = try await KubeDriver.delete(
+            context: "c", namespace: "n", manifestYAML: "kind: Namespace\n")
+        // Deleting something already gone must satisfy desired=off, not fail.
+        XCTAssertTrue(out.stdout.split(separator: "\n").map(String.init)
+            .contains("--ignore-not-found=true"))
+    }
+}
+
 private struct TimeoutError: Error {}
 
 /// Races `operation` against a deadline so a hang fails the test instead of

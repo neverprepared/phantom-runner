@@ -16,6 +16,7 @@
 		3B5672C111147237E1F26414 /* SSHDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = A45E5E6DCD243E4590EE1E89 /* SSHDriver.swift */; };
 		3CE6A720CAF07BBD3AF98343 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB7E6477BF6AA5CD2AE3F533 /* AppState.swift */; };
 		3D13CF81EA88A2BB11B7B8CF /* UTMDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3A246AD11A400CC25A53D3B /* UTMDriver.swift */; };
+		46435DC9763DC8536936714E /* IntegrationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F28B0C872C9F1C79DFDFE980 /* IntegrationEngine.swift */; };
 		4C85333264C276F3942FBBFD /* UpdateRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 535702CEBEB32B69C19CB6C4 /* UpdateRow.swift */; };
 		4CC2925BC34F83F10177706B /* BrainboxRunnerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7933890370CA640A6AA6064F /* BrainboxRunnerApp.swift */; };
 		4CF72BDD125F574D1DBC8190 /* HostCommandDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F883BF63BA4E17288093B9F8 /* HostCommandDriver.swift */; };
@@ -51,9 +52,11 @@
 		DE9B379343D92B4FC95ECEEB /* Redact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E55C42EBC0D86759BA47F6 /* Redact.swift */; };
 		DF4142E36BD42A900AD1C3DE /* ProfileEnv.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DE7873A141AFC515FADA42C /* ProfileEnv.swift */; };
 		E0BC3C4D40A1F81379DA40EE /* AppleScriptRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDA8C9406482E6EBF2C0D682 /* AppleScriptRunner.swift */; };
+		E13096461A473312C4C23480 /* IntegrationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F28B0C872C9F1C79DFDFE980 /* IntegrationEngine.swift */; };
 		E88F0C60D91476ED6F4960F4 /* CredentialCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BB0723FB7FE5B2EF93E2DF2 /* CredentialCache.swift */; };
 		EA52DC4DCC0D983C3EC7E0B8 /* RemindersAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27F9C6CD03A3B03FA495B8A9 /* RemindersAccessTests.swift */; };
 		EB09840CCC83797A4BFE4107 /* KubeDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D7BFA72803F78F397E999E3 /* KubeDriver.swift */; };
+		EB9AEA8E819296CFD11C20C2 /* IntegrationEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD2C8017EC91833834A05DAA /* IntegrationEngineTests.swift */; };
 		F91D1D23D28052FC256A5372 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1B73148F93D766B5072CFFAC /* Assets.xcassets */; };
 		FB6FB7DA4A9C608107009899 /* CredentialsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAE3E95E6AF56E6355785936 /* CredentialsTab.swift */; };
 /* End PBXBuildFile section */
@@ -103,7 +106,9 @@
 		E842C94C4DD59B5C0A05394B /* APITab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APITab.swift; sourceTree = "<group>"; };
 		F086A7A37B58DFF46E9C5EA7 /* GeneralTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralTab.swift; sourceTree = "<group>"; };
 		F14B05128CFCC3468235E098 /* DockerDriver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockerDriver.swift; sourceTree = "<group>"; };
+		F28B0C872C9F1C79DFDFE980 /* IntegrationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegrationEngine.swift; sourceTree = "<group>"; };
 		F883BF63BA4E17288093B9F8 /* HostCommandDriver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostCommandDriver.swift; sourceTree = "<group>"; };
+		FD2C8017EC91833834A05DAA /* IntegrationEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegrationEngineTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -127,6 +132,7 @@
 				7660EEBCC042C876EF4B4602 /* Envelope.swift */,
 				00BA82D894DE3FE091155322 /* EnvelopeQueue.swift */,
 				F883BF63BA4E17288093B9F8 /* HostCommandDriver.swift */,
+				F28B0C872C9F1C79DFDFE980 /* IntegrationEngine.swift */,
 				59D00EE7A7D6EF4EB2323136 /* KeychainStore.swift */,
 				39788789B49694F1066C624C /* KubeCapability.swift */,
 				1D7BFA72803F78F397E999E3 /* KubeDriver.swift */,
@@ -179,6 +185,7 @@
 		9FB5C9DAB2D444FF7FBEB223 /* Tests */ = {
 			isa = PBXGroup;
 			children = (
+				FD2C8017EC91833834A05DAA /* IntegrationEngineTests.swift */,
 				C156240CAA9FCD49DD68EC13 /* KubeCapabilityTests.swift */,
 				D07FCB285ADB429CC3DAAAD4 /* KubeDriverTests.swift */,
 				52FD252830BA9A9787CC46A2 /* KubePreflightTests.swift */,
@@ -293,6 +300,8 @@
 			files = (
 				D61140724610C3979E7BE362 /* DockerDriver.swift in Sources */,
 				4CF72BDD125F574D1DBC8190 /* HostCommandDriver.swift in Sources */,
+				E13096461A473312C4C23480 /* IntegrationEngine.swift in Sources */,
+				EB9AEA8E819296CFD11C20C2 /* IntegrationEngineTests.swift in Sources */,
 				9E1CAFA3E307A81CF35EFC48 /* KubeCapability.swift in Sources */,
 				71BBFD81309DA35CFC0B6E9E /* KubeCapabilityTests.swift in Sources */,
 				6DA18997ED6AE638668D2CB7 /* KubeDriver.swift in Sources */,
@@ -325,6 +334,7 @@
 				629997400B4CA88F06DA2177 /* EnvelopeQueue.swift in Sources */,
 				65E3E524AC8E93E454C5E9DC /* GeneralTab.swift in Sources */,
 				96EB04D3E7DA245DDAD6C1D7 /* HostCommandDriver.swift in Sources */,
+				46435DC9763DC8536936714E /* IntegrationEngine.swift in Sources */,
 				5A88A7E35510C6777A9CF0CB /* KeychainStore.swift in Sources */,
 				84ACBD350D7FE94999B5DD2E /* KubeCapability.swift in Sources */,
 				EB09840CCC83797A4BFE4107 /* KubeDriver.swift in Sources */,

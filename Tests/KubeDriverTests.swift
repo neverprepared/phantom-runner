@@ -68,6 +68,19 @@ final class KubeDriverTests: XCTestCase {
         XCTAssertEqual(out.exitCode, 1)
     }
 
+    func test_run_withNilStdin_doesNotInheritHostStdinAndCompletesPromptly() async throws {
+        // A fake kubectl that reads stdin to EOF before producing output.
+        // If `run()` left `proc.standardInput` unset when `stdin` is nil, the
+        // child inherits the host process's real stdin, which never closes —
+        // `cat` would then block forever instead of seeing EOF immediately.
+        let bin = try fakeKubectl(script: "cat; echo done")
+        setenv("PHANTOM_KUBECTL", bin.path, 1)
+        let out = try await withTimeout(seconds: 10) {
+            try await KubeDriver.run(["get", "ns"], stdin: nil, expectSuccess: true)
+        }
+        XCTAssertEqual(out.stdout.trimmingCharacters(in: .whitespacesAndNewlines), "done")
+    }
+
     func test_errorDescription_redactsCredentialsInStderr() {
         // Pin that redaction runs BEFORE truncation, not just that it runs.
         // A token placed so it straddles the `.prefix(300)` cut: 280 bytes of

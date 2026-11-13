@@ -88,6 +88,14 @@ struct KubeDriver {
             let stdinPipe = Pipe()
             proc.standardInput = stdinPipe
             stdinHandle = stdinPipe.fileHandleForWriting
+        } else {
+            // Without this, `proc.standardInput` is left unset and the child
+            // INHERITS the host process's real stdin. For a GUI login item
+            // that is whatever fd launchd handed the app, and it never
+            // closes — a `kubectl` invocation with no stdin (e.g. `get`)
+            // that reads stdin for any reason would hang forever rather than
+            // seeing EOF.
+            proc.standardInput = FileHandle.nullDevice
         }
 
         log.debug("kubectl \(Redact.argv(args), privacy: .public)")

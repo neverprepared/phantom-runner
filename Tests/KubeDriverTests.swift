@@ -141,19 +141,24 @@ final class KubeDriverTests: XCTestCase {
         wait(for: [resumed], timeout: 5)
     }
 
-    func test_terminationBox_ignoresASecondCompletion() {
-        // `resume` on an already-resumed continuation traps the process, so a
-        // double callback must be swallowed, not forwarded.
+    func test_terminationBox_keepsTheFirstStatusAndIgnoresASecondCompletion() {
+        // Both completions land BEFORE any waiter attaches, which is what
+        // makes this test able to fail for its stated purpose. With the
+        // `guard status == nil` removed, the second `complete` overwrites the
+        // parked status and the waiter observes 2 instead of 1. (Issuing them
+        // after a waiter had attached would NOT pin the guard: `waiter` is
+        // already nil by then, so the second call resumes nothing and the
+        // test passes either way — it would only re-prove exactly-once,
+        // which the two tests above already cover.)
         let box = KubeProcessTermination()
+        box.complete(1)
+        box.complete(2)
         let resumed = expectation(description: "exitStatus() resumed")
         Task {
             let code = await box.exitStatus()
-            XCTAssertEqual(code, 1)
+            XCTAssertEqual(code, 1, "a second completion overwrote the first status")
             resumed.fulfill()
         }
-        Thread.sleep(forTimeInterval: 0.05)
-        box.complete(1)
-        box.complete(2)
         wait(for: [resumed], timeout: 5)
     }
 

@@ -178,7 +178,14 @@ struct KubeDriver {
 /// it: the stdin writer owns the write end until it closes it, and each drain
 /// task owns one read end until EOF. No handle is shared between the boxes,
 /// and the parent never touches a handle after boxing it.
-struct KubeUnchecked<T>: @unchecked Sendable {
+///
+/// `fileprivate` on purpose. The soundness argument above is about THIS
+/// file's four use sites, not about the type — it is generic over any `T` and
+/// asserts `Sendable` unconditionally, so it would launder a real data race
+/// anywhere the sole-ownership invariant does not hold. `DockerDriver` is the
+/// obvious next reach and would not satisfy it. Anyone who needs this
+/// elsewhere should restate the invariant for their own use sites.
+fileprivate struct KubeUnchecked<T>: @unchecked Sendable {
     let value: T
     init(_ value: T) { self.value = value }
 }
@@ -198,6 +205,12 @@ struct KubeUnchecked<T>: @unchecked Sendable {
 /// `@unchecked Sendable` is sound because every mutable field is read and
 /// written only while `lock` is held, and the only values that escape the
 /// lock are ones the holding thread has exclusive ownership of.
+///
+/// CONTRACT: at most ONE waiter. A second concurrent `exitStatus()` call on
+/// the same box would overwrite `waiter` and leak the first continuation,
+/// hanging whoever held it. `KubeDriver.run()` creates one box per
+/// invocation and awaits it once, so this is not reachable today — but a box
+/// shared between waiters needs a queue of continuations, not this.
 final class KubeProcessTermination: @unchecked Sendable {
     private let lock = NSLock()
     private var status: Int32?

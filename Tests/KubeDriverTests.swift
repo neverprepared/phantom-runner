@@ -100,6 +100,105 @@ final class KubeDriverTests: XCTestCase {
         }
     }
 
+
+    // The two box tests below are the real proof of the construction's
+    // contract: `exitStatus()` resumes exactly once no matter which of the
+    // two events lands first. They are deliberately NOT `async` tests —
+    // `wait(for:timeout:)` fails cleanly when the continuation is never
+    // resumed, whereas directly awaiting a stuck `withCheckedContinuation`
+    // is uncancellable and would hang the whole suite instead.
+
+    func test_terminationBox_resumesWhenTerminationArrivesBeforeTheWaiter() {
+        // The ordering a fast-exiting child actually produces: termination is
+        // reported before anything awaits the exit status. The box must park
+        // the status and hand it to the eventual waiter rather than drop it.
+        let box = KubeProcessTermination()
+        box.complete(7)
+        let resumed = expectation(description: "exitStatus() resumed")
+        Task {
+            let code = await box.exitStatus()
+            XCTAssertEqual(code, 7)
+            resumed.fulfill()
+        }
+        wait(for: [resumed], timeout: 5)
+    }
+
+    func test_terminationBox_resumesWhenTheWaiterArrivesBeforeTermination() {
+        // The other ordering: a waiter attaches while the child is still
+        // running, and the later callback must resume it.
+        let box = KubeProcessTermination()
+        let resumed = expectation(description: "exitStatus() resumed")
+        Task {
+            let code = await box.exitStatus()
+            XCTAssertEqual(code, 3)
+            resumed.fulfill()
+        }
+        // Let the waiter attach first. If it has not attached yet this
+        // degrades into the other ordering, which the test above covers, so
+        // the sleep is a bias and not a correctness requirement.
+        Thread.sleep(forTimeInterval: 0.05)
+        box.complete(3)
+        wait(for: [resumed], timeout: 5)
+    }
+
+    func test_terminationBox_ignoresASecondCompletion() {
+        // `resume` on an already-resumed continuation traps the process, so a
+        // double callback must be swallowed, not forwarded.
+        let box = KubeProcessTermination()
+        let resumed = expectation(description: "exitStatus() resumed")
+        Task {
+            let code = await box.exitStatus()
+            XCTAssertEqual(code, 1)
+            resumed.fulfill()
+        }
+        Thread.sleep(forTimeInterval: 0.05)
+        box.complete(1)
+        box.complete(2)
+        wait(for: [resumed], timeout: 5)
+    }
+
+    func test_run_manyConcurrentFastExitingInvocationsAllComplete() async throws {
+        // 32 concurrent `run()` calls against a child that exits in
+        // microseconds: termination is reported long before any of the parent
+        // tasks awaits it, and the cooperative pool is contended the whole
+        // time. This is the end-to-end check that no invocation is lost to
+        // the early-termination ordering or to pool starvation. The
+        // per-invocation exit code travels in argv, so a box that resumed a
+        // waiter with another invocation's status fails loudly instead of
+        // hanging. One fake binary serves every task because the
+        // `PHANTOM_KUBECTL` override is process-global and must not be
+        // written concurrently.
+        //
+        // HONEST LIMIT: this test does NOT distinguish registering
+        // `terminationHandler` before `run()` from registering it after.
+        // Probed by restoring the post-`run()` form — it still passed in
+        // 0.5s, because Darwin Foundation back-fires a late handler (see the
+        // note at the registration site). The deterministic proof of the
+        // ordering contract is the three `terminationBox` tests above; this
+        // one guards the concurrent path as a whole.
+        let bin = try fakeKubectl(script: #"exit "$1""#)
+        setenv("PHANTOM_KUBECTL", bin.path, 1)
+
+        try await withTimeout(seconds: 60) {
+            try await withThrowingTaskGroup(of: (Int32, Int32).self) { group in
+                for i in 0..<32 {
+                    let expected = Int32(i % 8)
+                    group.addTask {
+                        let out = try await KubeDriver.run(
+                            ["\(expected)"], stdin: nil, expectSuccess: false)
+                        return (expected, out.exitCode)
+                    }
+                }
+                var seen = 0
+                for try await (expected, actual) in group {
+                    XCTAssertEqual(actual, expected)
+                    seen += 1
+                }
+                XCTAssertEqual(seen, 32)
+            }
+        }
+    }
+
     func test_run_drainsLargeStderrConcurrentlyWithStdout() async throws {
         // A sequential stdout-then-stderr read deadlocks once the child
         // writes more than the pipe buffer (~64KB) to the stream read
@@ -111,8 +210,17 @@ final class KubeDriverTests: XCTestCase {
             script: "echo out; head -c 200000 /dev/zero | tr '\\0' x 1>&2; echo done 1>&2")
         setenv("PHANTOM_KUBECTL", bin.path, 1)
 
-        // Explicit timeout so a reintroduced deadlock fails the test loudly
-        // in seconds instead of hanging the suite indefinitely.
+        // NOTE ON THE BOUND: `withTimeout` canNOT rescue this test from a
+        // reintroduced drain deadlock. The loser of the race is cancelled,
+        // but a thread parked in `readDataToEndOfFile()` is not
+        // cancellation-aware, and a throwing task group awaits its remaining
+        // children before propagating — so the group never returns. Verified
+        // empirically in fix round 1: with the sequential read restored, the
+        // suite HUNG and had to be killed externally. A drain regression
+        // therefore hangs this suite, bounded only by CI's wall clock.
+        // `withTimeout` is kept because it still bounds the non-deadlock
+        // failure modes — a child that is merely slow, or a fake kubectl that
+        // never exits while both pipes stay readable.
         let out = try await withTimeout(seconds: 10) {
             try await KubeDriver.run(["get", "ns"], stdin: nil, expectSuccess: true)
         }

@@ -67,6 +67,10 @@ targets:
       - path: Tests
       - path: BrainboxRunner/Core/Redact.swift
       - path: BrainboxRunner/Core/DockerDriver.swift
+      - path: BrainboxRunner/Core/KubeDriver.swift
+      - path: BrainboxRunner/Core/KubeCapability.swift
+      - path: BrainboxRunner/Core/KubePreflight.swift
+      - path: BrainboxRunner/Core/IntegrationEngine.swift
       # Host-exec units. Both are dependency-free Foundation on purpose so they
       # can be tested without hosting the menu-bar app.
       - path: BrainboxRunner/Core/ProfileEnv.swift

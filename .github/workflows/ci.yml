@@ -9,6 +9,15 @@ jobs:
   build:
     name: Build (Debug, unsigned)
     runs-on: macos-15
+    # GitHub's default job timeout is 6 HOURS, and macOS minutes bill at 10x.
+    # The failure this guards is specific and known: a regression in
+    # KubeDriver's concurrent pipe drain deadlocks the test process, and
+    # nothing in-process can bound it (a thread parked in
+    # readDataToEndOfFile() is not cancellable, and a throwing task group
+    # awaits its remaining children before propagating). So the suite would
+    # hang to the default limit and burn ~60 hours of billed minutes per run.
+    # The suite itself finishes in about a second; 20 minutes is ample.
+    timeout-minutes: 20
 
     steps:
       - name: Checkout

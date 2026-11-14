@@ -93,6 +93,9 @@ struct MenuBarView: View {
         var caps: [String] = []
         if state.settings.dockerEnabled { caps.append("docker") }
         if state.settings.utmEnabled    { caps.append("utm") }
+        if KubeCapability.isAdvertised(enabled: state.settings.k8sEnabled, contexts: state.settings.kubeContexts) {
+            caps.append("k8s")
+        }
         if caps.isEmpty { return "Capabilities: none" }
         return "Capabilities: " + caps.joined(separator: " · ")
     }

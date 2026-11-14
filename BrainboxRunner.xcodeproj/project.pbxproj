@@ -7,44 +7,56 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0BB3902D12D6FC757AF68D87 /* KubePreflight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9549FD2C1B9EF2B8FD5CC2B6 /* KubePreflight.swift */; };
 		0EAA065AF980A4AA7FE30E95 /* PairingClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0757B08D76E36F77E3549A66 /* PairingClient.swift */; };
 		2F756EB067DE4D4E337A2F4F /* RemindersAccess+EventKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67F3328A18BBE207ACE1F392 /* RemindersAccess+EventKit.swift */; };
 		2FFEAB2AD8991F2714256500 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21023EC451C6D89E143AF9B0 /* SettingsStore.swift */; };
 		34835E9A21EAA7756A0C8082 /* DockerDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F14B05128CFCC3468235E098 /* DockerDriver.swift */; };
+		37904552BE9E608898589A22 /* KubePreflightTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52FD252830BA9A9787CC46A2 /* KubePreflightTests.swift */; };
 		3B5672C111147237E1F26414 /* SSHDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = A45E5E6DCD243E4590EE1E89 /* SSHDriver.swift */; };
 		3CE6A720CAF07BBD3AF98343 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB7E6477BF6AA5CD2AE3F533 /* AppState.swift */; };
 		3D13CF81EA88A2BB11B7B8CF /* UTMDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3A246AD11A400CC25A53D3B /* UTMDriver.swift */; };
+		46435DC9763DC8536936714E /* IntegrationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F28B0C872C9F1C79DFDFE980 /* IntegrationEngine.swift */; };
 		4C85333264C276F3942FBBFD /* UpdateRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 535702CEBEB32B69C19CB6C4 /* UpdateRow.swift */; };
 		4CC2925BC34F83F10177706B /* BrainboxRunnerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7933890370CA640A6AA6064F /* BrainboxRunnerApp.swift */; };
 		4CF72BDD125F574D1DBC8190 /* HostCommandDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F883BF63BA4E17288093B9F8 /* HostCommandDriver.swift */; };
 		4D2714DA5AAD44E24E087B2E /* Envelope.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7660EEBCC042C876EF4B4602 /* Envelope.swift */; };
+		5239AAABB426383FB04A9279 /* KubePreflight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9549FD2C1B9EF2B8FD5CC2B6 /* KubePreflight.swift */; };
 		5A88A7E35510C6777A9CF0CB /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59D00EE7A7D6EF4EB2323136 /* KeychainStore.swift */; };
 		629997400B4CA88F06DA2177 /* EnvelopeQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00BA82D894DE3FE091155322 /* EnvelopeQueue.swift */; };
 		6405E560C6567A3A5AA00E0E /* UpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D5911779CD52A96182D0CC7 /* UpdateChecker.swift */; };
 		641223DBE763BA4C8DBD537E /* Redact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E55C42EBC0D86759BA47F6 /* Redact.swift */; };
 		64BA44A6807A3476CF284C50 /* OllamaProxy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EFCBACB40D0F4803FA89E21 /* OllamaProxy.swift */; };
 		65E3E524AC8E93E454C5E9DC /* GeneralTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = F086A7A37B58DFF46E9C5EA7 /* GeneralTab.swift */; };
+		6DA18997ED6AE638668D2CB7 /* KubeDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D7BFA72803F78F397E999E3 /* KubeDriver.swift */; };
 		6E1AB47D4EC526C4280C0A95 /* APITab.swift in Sources */ = {isa = PBXBuildFile; fileRef = E842C94C4DD59B5C0A05394B /* APITab.swift */; };
 		6FA4E55A593A193AF2EDFE92 /* CapabilitiesTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4DD14E847EA76E2F0BC3C6C /* CapabilitiesTab.swift */; };
 		7125495770E1319FEC406B9C /* RemindersAccessState.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DF960A11B39A70296B5C18 /* RemindersAccessState.swift */; };
+		71BBFD81309DA35CFC0B6E9E /* KubeCapabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C156240CAA9FCD49DD68EC13 /* KubeCapabilityTests.swift */; };
 		76762D4752C4A3EB5FEAB15D /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD6412DF41930DBC3C0FBF75 /* SettingsView.swift */; };
+		84ACBD350D7FE94999B5DD2E /* KubeCapability.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39788789B49694F1066C624C /* KubeCapability.swift */; };
 		8B5F5A11D47C749D7E673BC4 /* SessionExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CF739ED95538D21742A5C07 /* SessionExecutor.swift */; };
 		96EB04D3E7DA245DDAD6C1D7 /* HostCommandDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F883BF63BA4E17288093B9F8 /* HostCommandDriver.swift */; };
 		9B583E873453DFE37EBD99C4 /* ProfileEnv.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DE7873A141AFC515FADA42C /* ProfileEnv.swift */; };
 		9C49F41F759E2B48EF2D8E2A /* RunnerCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21474723A4C0F931EF8B78E7 /* RunnerCore.swift */; };
+		9E1CAFA3E307A81CF35EFC48 /* KubeCapability.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39788789B49694F1066C624C /* KubeCapability.swift */; };
 		A6A37232AD3C400D63719926 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9CBCADD106AF6A8E7400034 /* APIClient.swift */; };
 		AB8E1B0062C3A6C833178B04 /* ProfileEnvTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5552E2FA6B2D91E22F79E87B /* ProfileEnvTests.swift */; };
 		B0DA9FBB6BD550F0100AC2DE /* ResultQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F3976E860595DD8938C9E40 /* ResultQueue.swift */; };
 		B61096DEB9EBA926F1FA181F /* RedactTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A5A0C4F643491179D17A29 /* RedactTests.swift */; };
 		BD2EBBBCD533A34CBE183916 /* RemindersAccessState.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DF960A11B39A70296B5C18 /* RemindersAccessState.swift */; };
+		C31726D969EAEBD2F79146CF /* KubeDriverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D07FCB285ADB429CC3DAAAD4 /* KubeDriverTests.swift */; };
 		CB859BD667C5A6CD0E9001B0 /* PairingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6A5F52ABCCA21584ED708EE /* PairingSheet.swift */; };
 		CF6DE7EE73F07B99EE08B939 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48E6D96C32D74563C08B58D9 /* MenuBarView.swift */; };
 		D61140724610C3979E7BE362 /* DockerDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F14B05128CFCC3468235E098 /* DockerDriver.swift */; };
 		DE9B379343D92B4FC95ECEEB /* Redact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E55C42EBC0D86759BA47F6 /* Redact.swift */; };
 		DF4142E36BD42A900AD1C3DE /* ProfileEnv.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DE7873A141AFC515FADA42C /* ProfileEnv.swift */; };
 		E0BC3C4D40A1F81379DA40EE /* AppleScriptRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDA8C9406482E6EBF2C0D682 /* AppleScriptRunner.swift */; };
+		E13096461A473312C4C23480 /* IntegrationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F28B0C872C9F1C79DFDFE980 /* IntegrationEngine.swift */; };
 		E88F0C60D91476ED6F4960F4 /* CredentialCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BB0723FB7FE5B2EF93E2DF2 /* CredentialCache.swift */; };
 		EA52DC4DCC0D983C3EC7E0B8 /* RemindersAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27F9C6CD03A3B03FA495B8A9 /* RemindersAccessTests.swift */; };
+		EB09840CCC83797A4BFE4107 /* KubeDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D7BFA72803F78F397E999E3 /* KubeDriver.swift */; };
+		EB9AEA8E819296CFD11C20C2 /* IntegrationEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD2C8017EC91833834A05DAA /* IntegrationEngineTests.swift */; };
 		F91D1D23D28052FC256A5372 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1B73148F93D766B5072CFFAC /* Assets.xcassets */; };
 		FB6FB7DA4A9C608107009899 /* CredentialsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAE3E95E6AF56E6355785936 /* CredentialsTab.swift */; };
 /* End PBXBuildFile section */
@@ -55,13 +67,16 @@
 		1B73148F93D766B5072CFFAC /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1C474757D9766CE01411A2BD /* BrainboxRunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BrainboxRunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1CF739ED95538D21742A5C07 /* SessionExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionExecutor.swift; sourceTree = "<group>"; };
+		1D7BFA72803F78F397E999E3 /* KubeDriver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KubeDriver.swift; sourceTree = "<group>"; };
 		21023EC451C6D89E143AF9B0 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
 		21474723A4C0F931EF8B78E7 /* RunnerCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerCore.swift; sourceTree = "<group>"; };
 		27F9C6CD03A3B03FA495B8A9 /* RemindersAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemindersAccessTests.swift; sourceTree = "<group>"; };
 		2BB0723FB7FE5B2EF93E2DF2 /* CredentialCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialCache.swift; sourceTree = "<group>"; };
 		2F3976E860595DD8938C9E40 /* ResultQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultQueue.swift; sourceTree = "<group>"; };
+		39788789B49694F1066C624C /* KubeCapability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KubeCapability.swift; sourceTree = "<group>"; };
 		48E6D96C32D74563C08B58D9 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
 		4EFCBACB40D0F4803FA89E21 /* OllamaProxy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OllamaProxy.swift; sourceTree = "<group>"; };
+		52FD252830BA9A9787CC46A2 /* KubePreflightTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KubePreflightTests.swift; sourceTree = "<group>"; };
 		535702CEBEB32B69C19CB6C4 /* UpdateRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateRow.swift; sourceTree = "<group>"; };
 		5552E2FA6B2D91E22F79E87B /* ProfileEnvTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEnvTests.swift; sourceTree = "<group>"; };
 		59D00EE7A7D6EF4EB2323136 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
@@ -75,20 +90,25 @@
 		8DE7873A141AFC515FADA42C /* ProfileEnv.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEnv.swift; sourceTree = "<group>"; };
 		8DF99ECF96FA544FF607C90F /* BrainboxRunner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BrainboxRunner.entitlements; sourceTree = "<group>"; };
 		92E55C42EBC0D86759BA47F6 /* Redact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Redact.swift; sourceTree = "<group>"; };
+		9549FD2C1B9EF2B8FD5CC2B6 /* KubePreflight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KubePreflight.swift; sourceTree = "<group>"; };
 		A45E5E6DCD243E4590EE1E89 /* SSHDriver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHDriver.swift; sourceTree = "<group>"; };
 		AB7E6477BF6AA5CD2AE3F533 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		C0DF960A11B39A70296B5C18 /* RemindersAccessState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemindersAccessState.swift; sourceTree = "<group>"; };
+		C156240CAA9FCD49DD68EC13 /* KubeCapabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KubeCapabilityTests.swift; sourceTree = "<group>"; };
 		C4DD14E847EA76E2F0BC3C6C /* CapabilitiesTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapabilitiesTab.swift; sourceTree = "<group>"; };
 		C9CBCADD106AF6A8E7400034 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		CAE3E95E6AF56E6355785936 /* CredentialsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialsTab.swift; sourceTree = "<group>"; };
 		CD6412DF41930DBC3C0FBF75 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		CDA8C9406482E6EBF2C0D682 /* AppleScriptRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptRunner.swift; sourceTree = "<group>"; };
+		D07FCB285ADB429CC3DAAAD4 /* KubeDriverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KubeDriverTests.swift; sourceTree = "<group>"; };
 		D6A5F52ABCCA21584ED708EE /* PairingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingSheet.swift; sourceTree = "<group>"; };
 		E3A246AD11A400CC25A53D3B /* UTMDriver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UTMDriver.swift; sourceTree = "<group>"; };
 		E842C94C4DD59B5C0A05394B /* APITab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APITab.swift; sourceTree = "<group>"; };
 		F086A7A37B58DFF46E9C5EA7 /* GeneralTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralTab.swift; sourceTree = "<group>"; };
 		F14B05128CFCC3468235E098 /* DockerDriver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockerDriver.swift; sourceTree = "<group>"; };
+		F28B0C872C9F1C79DFDFE980 /* IntegrationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegrationEngine.swift; sourceTree = "<group>"; };
 		F883BF63BA4E17288093B9F8 /* HostCommandDriver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostCommandDriver.swift; sourceTree = "<group>"; };
+		FD2C8017EC91833834A05DAA /* IntegrationEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegrationEngineTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -112,7 +132,11 @@
 				7660EEBCC042C876EF4B4602 /* Envelope.swift */,
 				00BA82D894DE3FE091155322 /* EnvelopeQueue.swift */,
 				F883BF63BA4E17288093B9F8 /* HostCommandDriver.swift */,
+				F28B0C872C9F1C79DFDFE980 /* IntegrationEngine.swift */,
 				59D00EE7A7D6EF4EB2323136 /* KeychainStore.swift */,
+				39788789B49694F1066C624C /* KubeCapability.swift */,
+				1D7BFA72803F78F397E999E3 /* KubeDriver.swift */,
+				9549FD2C1B9EF2B8FD5CC2B6 /* KubePreflight.swift */,
 				4EFCBACB40D0F4803FA89E21 /* OllamaProxy.swift */,
 				0757B08D76E36F77E3549A66 /* PairingClient.swift */,
 				8DE7873A141AFC515FADA42C /* ProfileEnv.swift */,
@@ -161,6 +185,10 @@
 		9FB5C9DAB2D444FF7FBEB223 /* Tests */ = {
 			isa = PBXGroup;
 			children = (
+				FD2C8017EC91833834A05DAA /* IntegrationEngineTests.swift */,
+				C156240CAA9FCD49DD68EC13 /* KubeCapabilityTests.swift */,
+				D07FCB285ADB429CC3DAAAD4 /* KubeDriverTests.swift */,
+				52FD252830BA9A9787CC46A2 /* KubePreflightTests.swift */,
 				5552E2FA6B2D91E22F79E87B /* ProfileEnvTests.swift */,
 				68A5A0C4F643491179D17A29 /* RedactTests.swift */,
 				27F9C6CD03A3B03FA495B8A9 /* RemindersAccessTests.swift */,
@@ -272,6 +300,14 @@
 			files = (
 				D61140724610C3979E7BE362 /* DockerDriver.swift in Sources */,
 				4CF72BDD125F574D1DBC8190 /* HostCommandDriver.swift in Sources */,
+				E13096461A473312C4C23480 /* IntegrationEngine.swift in Sources */,
+				EB9AEA8E819296CFD11C20C2 /* IntegrationEngineTests.swift in Sources */,
+				9E1CAFA3E307A81CF35EFC48 /* KubeCapability.swift in Sources */,
+				71BBFD81309DA35CFC0B6E9E /* KubeCapabilityTests.swift in Sources */,
+				6DA18997ED6AE638668D2CB7 /* KubeDriver.swift in Sources */,
+				C31726D969EAEBD2F79146CF /* KubeDriverTests.swift in Sources */,
+				5239AAABB426383FB04A9279 /* KubePreflight.swift in Sources */,
+				37904552BE9E608898589A22 /* KubePreflightTests.swift in Sources */,
 				DF4142E36BD42A900AD1C3DE /* ProfileEnv.swift in Sources */,
 				AB8E1B0062C3A6C833178B04 /* ProfileEnvTests.swift in Sources */,
 				641223DBE763BA4C8DBD537E /* Redact.swift in Sources */,
@@ -298,7 +334,11 @@
 				629997400B4CA88F06DA2177 /* EnvelopeQueue.swift in Sources */,
 				65E3E524AC8E93E454C5E9DC /* GeneralTab.swift in Sources */,
 				96EB04D3E7DA245DDAD6C1D7 /* HostCommandDriver.swift in Sources */,
+				46435DC9763DC8536936714E /* IntegrationEngine.swift in Sources */,
 				5A88A7E35510C6777A9CF0CB /* KeychainStore.swift in Sources */,
+				84ACBD350D7FE94999B5DD2E /* KubeCapability.swift in Sources */,
+				EB09840CCC83797A4BFE4107 /* KubeDriver.swift in Sources */,
+				0BB3902D12D6FC757AF68D87 /* KubePreflight.swift in Sources */,
 				CF6DE7EE73F07B99EE08B939 /* MenuBarView.swift in Sources */,
 				64BA44A6807A3476CF284C50 /* OllamaProxy.swift in Sources */,
 				0EAA065AF980A4AA7FE30E95 /* PairingClient.swift in Sources */,

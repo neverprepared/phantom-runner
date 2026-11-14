@@ -60,7 +60,17 @@ final class RunnerCore {
         let name = settings.runnerName.isEmpty ? "runner" : settings.runnerName
         let machineID = settings.machineID
         let host = settings.runnerHost.isEmpty ? nil : settings.runnerHost
-        let tags = settings.tags
+        // Fold the advertised kube contexts into tags: a bool capability can
+        // say "this machine runs k8s" but can't name which cluster, and the
+        // control plane needs the context name to build a request
+        // KubePreflight will accept (it refuses any context not advertised
+        // here). Tags already flow unmodified through registration, so this
+        // needs no protocol change.
+        let tags = KubeCapability.advertisedTags(
+            operatorTags: settings.tags,
+            enabled: settings.k8sEnabled,
+            contexts: settings.kubeContexts
+        )
         let maxConcurrent = settings.maxConcurrent
 
         // Start the local Ollama HTTPS proxy if (a) the user enabled the
@@ -84,6 +94,10 @@ final class RunnerCore {
             // on a machine whose owner has not opted in, instead of dispatching
             // it and collecting a failure.
             "host_exec": settings.hostExecEnabled,
+            // Same contract for Kubernetes: this machine has kubectl and at
+            // least one reachable context. Deliberately NOT implied by docker
+            // — OrbStack being present says nothing about a cluster existing.
+            "k8s": KubeCapability.isAdvertised(enabled: settings.k8sEnabled, contexts: settings.kubeContexts),
         ]
         paused = false
 
@@ -398,6 +412,12 @@ final class RunnerCore {
             return await handleIntegrationDown(payload: work.payload)
         case "integration.status":
             return await handleIntegrationStatus(payload: work.payload)
+        case "kube.apply":
+            return await handleKubeApply(payload: work.payload)
+        case "kube.get":
+            return await handleKubeGet(payload: work.payload)
+        case "kube.delete":
+            return await handleKubeDelete(payload: work.payload)
         case "platform.ps":
             return await handlePlatformPs(payload: work.payload)
         case "platform.action":
@@ -593,11 +613,24 @@ final class RunnerCore {
     }
 
     private func handleIntegrationUp(payload: [String: AnyDecodable]) async -> APIClient.ResultPayload {
-        guard owner?.settings.dockerEnabled == true else {
-            return APIClient.ResultPayload(ok: false, error: "docker capability disabled in runner settings", data: nil)
-        }
         guard let name = payload["name"]?.value as? String, isValidIntegrationName(name) else {
             return APIClient.ResultPayload(ok: false, error: "valid integration name required ([a-z0-9][a-z0-9_-]*)", data: nil)
+        }
+        switch IntegrationEngine.resolve(payload["engine"]?.value as? String) {
+        case .docker:
+            return await integrationUpDocker(name: name, payload: payload)
+        case .k8s:
+            return await integrationUpK8s(name: name, payload: payload)
+        case .unsupported(let engine):
+            return APIClient.ResultPayload(ok: false, error: "unsupported engine: \(engine)", data: nil)
+        }
+    }
+
+    private func integrationUpDocker(
+        name: String, payload: [String: AnyDecodable]
+    ) async -> APIClient.ResultPayload {
+        guard owner?.settings.dockerEnabled == true else {
+            return APIClient.ResultPayload(ok: false, error: "docker capability disabled in runner settings", data: nil)
         }
         guard let yaml = payload["compose_yaml"]?.value as? String, !yaml.isEmpty else {
             return APIClient.ResultPayload(ok: false, error: "compose_yaml required", data: nil)
@@ -622,10 +655,93 @@ final class RunnerCore {
         }
     }
 
+    /// Applies the manifest shipped in the payload and keeps a copy on disk for
+    /// the same reason the compose path keeps its compose file: `integration
+    /// .down` needs it to delete, and an operator needs to see what was
+    /// actually applied. The manifest body itself is NEVER logged — it can
+    /// carry a Secret.
+    private func integrationUpK8s(
+        name: String, payload: [String: AnyDecodable]
+    ) async -> APIClient.ResultPayload {
+        let pre: KubePreflight.Target
+        switch kubePreflight(payload: payload) {
+        case .success(let target):
+            pre = target
+        case .failure(let why):
+            return APIClient.ResultPayload(ok: false, error: why, data: nil)
+        }
+        guard let yaml = payload["manifest_yaml"]?.value as? String, !yaml.isEmpty else {
+            return APIClient.ResultPayload(ok: false, error: "manifest_yaml required for engine k8s", data: nil)
+        }
+        do {
+            let dir = try integrationDir(name)
+            // 0600: a manifest routinely carries Secret material
+            // (stringData, env values), and the 0644 default leaves it
+            // readable by every other user on the machine. Measured: the
+            // file lands at 0644 and the chmod takes it to 0600.
+            //
+            // The chmod cannot be hoisted ahead of the write — on the first
+            // placement there is no file yet to chmod. So there IS a window
+            // between create and chmod; closing it properly needs the mode
+            // set at creation (`umask`, or open(2) with 0600), which
+            // `String.write(to:atomically:)` does not expose. Narrow and
+            // local-user-only, so left as is rather than hand-rolling the
+            // write.
+            let manifestFile = dir.appendingPathComponent("manifest.yaml")
+            try yaml.write(to: manifestFile, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes(
+                [.posixPermissions: 0o600], ofItemAtPath: manifestFile.path)
+            let out = try await KubeDriver.apply(
+                context: pre.context, namespace: pre.namespace, manifestYAML: yaml)
+            log.info("integration.up (k8s) done: \(name, privacy: .public)")
+            // stderr is redacted wherever it leaves this process toward the
+            // control plane — it is the stream kubectl echoes server and
+            // credential detail into. `expectSuccess: true` means a non-zero
+            // exit throws instead, into the already-redacting `KubeError`, so
+            // what reaches here is exit-0 warnings; those can still carry a
+            // token (an exec-plugin `--token=…`, a refresh failure).
+            //
+            // stdout is NOT redacted, and that is a real exposure rather than
+            // a judgement that stdout is safe. On THIS path it happens to be
+            // benign — `apply` emits `<kind>/<name> created|configured`. It is
+            // not benign on the read paths: `handleKubeGet` passes the
+            // caller's own `kinds` through, so `kinds: "secret"` returns
+            // Secret data verbatim, and even the default `deploy,sts,pod`
+            // returns object JSON whose pod templates carry plaintext
+            // `env.value` entries. `Redact` does not save us there — it keys
+            // off a name adjacent to its value, which does not match
+            // kubectl's `{"name":"X_TOKEN","value":"…"}` shape.
+            //
+            // So the protection here is the narrowness of what `apply`
+            // prints, not anything structural. Constraining `kinds` is a
+            // design decision for plan 2, deliberately not made here.
+            //
+            // Same stderr handling in `integrationDownK8s`, `handleKubeApply`
+            // and `handleKubeDelete`.
+            return APIClient.ResultPayload(ok: true, error: nil, data: ["output": AnyEncodable(Self.mergedOutput(out))])
+        } catch {
+            log.warning("integration.up (k8s) failed: \(String(describing: error), privacy: .public)")
+            return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
+        }
+    }
+
     private func handleIntegrationDown(payload: [String: AnyDecodable]) async -> APIClient.ResultPayload {
         guard let name = payload["name"]?.value as? String, isValidIntegrationName(name) else {
             return APIClient.ResultPayload(ok: false, error: "valid integration name required", data: nil)
         }
+        switch IntegrationEngine.resolve(payload["engine"]?.value as? String) {
+        case .docker:
+            return await integrationDownDocker(name: name, payload: payload)
+        case .k8s:
+            return await integrationDownK8s(name: name, payload: payload)
+        case .unsupported(let engine):
+            return APIClient.ResultPayload(ok: false, error: "unsupported engine: \(engine)", data: nil)
+        }
+    }
+
+    private func integrationDownDocker(
+        name: String, payload: [String: AnyDecodable]
+    ) async -> APIClient.ResultPayload {
         do {
             let dir = try integrationDir(name)
             let composeFile = dir.appendingPathComponent("docker-compose.yml")
@@ -642,10 +758,53 @@ final class RunnerCore {
         }
     }
 
+    private func integrationDownK8s(
+        name: String, payload: [String: AnyDecodable]
+    ) async -> APIClient.ResultPayload {
+        let pre: KubePreflight.Target
+        switch kubePreflight(payload: payload) {
+        case .success(let target):
+            pre = target
+        case .failure(let why):
+            return APIClient.ResultPayload(ok: false, error: why, data: nil)
+        }
+        do {
+            let dir = try integrationDir(name)
+            let file = dir.appendingPathComponent("manifest.yaml")
+            guard FileManager.default.fileExists(atPath: file.path) else {
+                // Never placed here / already cleaned — desired "off" already met.
+                // Mirrors the compose path's missing-file semantics exactly.
+                return APIClient.ResultPayload(ok: true, error: nil, data: ["output": AnyEncodable("no manifest; nothing to delete")])
+            }
+            let yaml = try String(contentsOf: file, encoding: .utf8)
+            let out = try await KubeDriver.delete(
+                context: pre.context, namespace: pre.namespace, manifestYAML: yaml)
+            log.info("integration.down (k8s) done: \(name, privacy: .public)")
+            // stderr redacted; stdout unredacted — see `integrationUpK8s`.
+            return APIClient.ResultPayload(ok: true, error: nil, data: ["output": AnyEncodable(Self.mergedOutput(out))])
+        } catch {
+            log.warning("integration.down (k8s) failed: \(String(describing: error), privacy: .public)")
+            return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
+        }
+    }
+
     private func handleIntegrationStatus(payload: [String: AnyDecodable]) async -> APIClient.ResultPayload {
         guard let name = payload["name"]?.value as? String, isValidIntegrationName(name) else {
             return APIClient.ResultPayload(ok: false, error: "valid integration name required", data: nil)
         }
+        switch IntegrationEngine.resolve(payload["engine"]?.value as? String) {
+        case .docker:
+            return await integrationStatusDocker(name: name, payload: payload)
+        case .k8s:
+            return await integrationStatusK8s(name: name, payload: payload)
+        case .unsupported(let engine):
+            return APIClient.ResultPayload(ok: false, error: "unsupported engine: \(engine)", data: nil)
+        }
+    }
+
+    private func integrationStatusDocker(
+        name: String, payload: [String: AnyDecodable]
+    ) async -> APIClient.ResultPayload {
         do {
             let dir = try integrationDir(name)
             let composeFile = dir.appendingPathComponent("docker-compose.yml")
@@ -660,6 +819,179 @@ final class RunnerCore {
                 "running": AnyEncodable(running),
                 "services": AnyEncodable(out.stdout),
             ])
+        } catch {
+            return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
+        }
+    }
+
+    /// Returns kubectl's JSON uninterpreted — the router reduces it to
+    /// running/not-running, matching how the compose path hands back raw
+    /// `ps --format json`.
+    ///
+    /// `exit_code` and `stderr` are carried alongside `output` for the same
+    /// reason `handleKubeGet` carries them: `KubeDriver.get` runs with
+    /// `expectSuccess: false`, so an empty `output` is what BOTH "nothing
+    /// matched" and "your credential expired / that namespace is gone" look
+    /// like. Without the exit code the router's reduction would read an
+    /// expired credential as a healthy service being DOWN, and a reconciler
+    /// would act on that. The router-side reduction MUST read `exit_code` and
+    /// only treat an empty `output` as "not running" when it is 0. `stderr`
+    /// goes through `Redact` because kubectl can echo credentials into it.
+    private func integrationStatusK8s(
+        name: String, payload: [String: AnyDecodable]
+    ) async -> APIClient.ResultPayload {
+        let pre: KubePreflight.Target
+        switch kubePreflight(payload: payload) {
+        case .success(let target):
+            pre = target
+        case .failure(let why):
+            return APIClient.ResultPayload(ok: false, error: why, data: nil)
+        }
+        do {
+            // Cross-repo contract: every manifest the control plane ships must
+            // carry this label, or a running service reports as absent.
+            let out = try await KubeDriver.get(
+                context: pre.context,
+                namespace: pre.namespace,
+                kinds: "deploy,sts,pod",
+                selector: "phantom.neverprepared.com/integration=\(name)"
+            )
+            return APIClient.ResultPayload(ok: true, error: nil, data: [
+                "output": AnyEncodable(out.stdout),
+                "exit_code": AnyEncodable(Int(out.exitCode)),
+                "stderr": AnyEncodable(Redact.text(out.stderr)),
+            ])
+        } catch {
+            return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
+        }
+    }
+
+    /// Joins a command's two streams into the single `output` string the
+    /// apply/delete result shape carries, with stderr redacted.
+    ///
+    /// The newline matters: concatenating directly glues a stdout with no
+    /// trailing newline onto the first stderr line, producing a single
+    /// corrupted line like `configmap/x configuredWarning: ...`. kubectl
+    /// normally terminates stdout with a newline, so this is the ragged-edge
+    /// case, which is exactly the one nobody notices until it is in a log.
+    ///
+    /// Kept as ONE merged key rather than split into `output`/`stderr` on
+    /// purpose: the read paths (`handleKubeGet`, `integrationStatusK8s`)
+    /// carry separate keys because a consumer must distinguish empty-but-fine
+    /// from failed, but the apply/delete result shape is already settled and
+    /// splitting it here would be a contract change, not a formatting fix.
+    private static func mergedOutput(_ out: KubeDriver.Output) -> String {
+        let err = Redact.text(out.stderr)
+        if out.stdout.isEmpty || err.isEmpty { return out.stdout + err }
+        if out.stdout.hasSuffix("\n") { return out.stdout + err }
+        return out.stdout + "\n" + err
+    }
+
+    // MARK: - Kubernetes (kube.* work-kinds)
+
+    // Plan 1: a `kubectl` driver + capability flag. The runner is a dumb
+    // executor here too — desired state lives in the control plane, there is
+    // no reconcile loop. `KubePreflight.resolve` (Foundation-only, unit
+    // tested directly in `KubePreflightTests`) holds the whole gating
+    // decision; this just supplies it the live settings and switches once on
+    // the result rather than the brief's double-evaluated guard/if pair.
+
+    private func kubePreflight(
+        payload: [String: AnyDecodable]
+    ) -> KubePreflight.Outcome {
+        KubePreflight.resolve(
+            enabled: owner?.settings.k8sEnabled == true,
+            advertised: owner?.settings.kubeContexts ?? [],
+            context: payload["context"]?.value as? String,
+            namespace: payload["namespace"]?.value as? String
+        )
+    }
+
+    private func handleKubeApply(payload: [String: AnyDecodable]) async -> APIClient.ResultPayload {
+        let pre: KubePreflight.Target
+        switch kubePreflight(payload: payload) {
+        case .success(let target):
+            pre = target
+        case .failure(let why):
+            return APIClient.ResultPayload(ok: false, error: why, data: nil)
+        }
+        guard let yaml = payload["manifest_yaml"]?.value as? String, !yaml.isEmpty else {
+            return APIClient.ResultPayload(ok: false, error: "manifest_yaml required", data: nil)
+        }
+        do {
+            let out = try await KubeDriver.apply(
+                context: pre.context, namespace: pre.namespace, manifestYAML: yaml)
+            log.info("kube.apply done: \(pre.namespace, privacy: .public)")
+            // stderr redacted; stdout unredacted — see `integrationUpK8s`.
+            return APIClient.ResultPayload(
+                ok: true, error: nil,
+                data: ["output": AnyEncodable(Self.mergedOutput(out))])
+        } catch {
+            log.warning("kube.apply failed: \(String(describing: error), privacy: .public)")
+            return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
+        }
+    }
+
+    private func handleKubeGet(payload: [String: AnyDecodable]) async -> APIClient.ResultPayload {
+        let pre: KubePreflight.Target
+        switch kubePreflight(payload: payload) {
+        case .success(let target):
+            pre = target
+        case .failure(let why):
+            return APIClient.ResultPayload(ok: false, error: why, data: nil)
+        }
+        // A present-but-blank `kinds` (e.g. `""`) is as absent as a missing
+        // key — without this, it passes straight through and builds
+        // `kubectl get "" -o json`, which is not the "use the default kinds"
+        // behavior the payload contract promises.
+        let kinds = (payload["kinds"]?.value as? String).flatMap { $0.isEmpty ? nil : $0 }
+            ?? "deploy,sts,pod"
+        let selector = payload["selector"]?.value as? String
+        do {
+            let out = try await KubeDriver.get(
+                context: pre.context, namespace: pre.namespace,
+                kinds: kinds, selector: selector)
+            // `expectSuccess: false`: an absent object (a legitimate
+            // `NotFound`, which still exits non-zero) is not an error here,
+            // so `ok` stays true on any exit code. But that means `ok: true,
+            // output: ""` is ALSO what a bad namespace or an expired
+            // credential looks like — indistinguishable from "nothing
+            // matched" unless the caller can see the exit code and stderr
+            // too. Carry both so a consumer (Task 5's status reduction, or
+            // the router) can tell "empty" from "failed" without guessing
+            // from stderr text. stderr goes through `Redact` — kubectl can
+            // echo credentials into it, same reason `KubeError.description`
+            // redacts.
+            return APIClient.ResultPayload(
+                ok: true, error: nil,
+                data: [
+                    "output": AnyEncodable(out.stdout),
+                    "exit_code": AnyEncodable(Int(out.exitCode)),
+                    "stderr": AnyEncodable(Redact.text(out.stderr)),
+                ])
+        } catch {
+            return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
+        }
+    }
+
+    private func handleKubeDelete(payload: [String: AnyDecodable]) async -> APIClient.ResultPayload {
+        let pre: KubePreflight.Target
+        switch kubePreflight(payload: payload) {
+        case .success(let target):
+            pre = target
+        case .failure(let why):
+            return APIClient.ResultPayload(ok: false, error: why, data: nil)
+        }
+        guard let yaml = payload["manifest_yaml"]?.value as? String, !yaml.isEmpty else {
+            return APIClient.ResultPayload(ok: false, error: "manifest_yaml required", data: nil)
+        }
+        do {
+            let out = try await KubeDriver.delete(
+                context: pre.context, namespace: pre.namespace, manifestYAML: yaml)
+            // stderr redacted; stdout unredacted — see `integrationUpK8s`.
+            return APIClient.ResultPayload(
+                ok: true, error: nil,
+                data: ["output": AnyEncodable(Self.mergedOutput(out))])
         } catch {
             return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
         }

@@ -418,6 +418,8 @@ final class RunnerCore {
             return await handleKubeGet(payload: work.payload)
         case "kube.delete":
             return await handleKubeDelete(payload: work.payload)
+        case "kube.exec":
+            return await handleKubeExec(payload: work.payload)
         case "platform.ps":
             return await handlePlatformPs(payload: work.payload)
         case "platform.action":
@@ -992,6 +994,54 @@ final class RunnerCore {
             return APIClient.ResultPayload(
                 ok: true, error: nil,
                 data: ["output": AnyEncodable(Self.mergedOutput(out))])
+        } catch {
+            return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
+        }
+    }
+
+    /// Run a shell command inside a pod.
+    ///
+    /// `ok` means THE EXEC RAN, not that the command succeeded — `exit_code`
+    /// carries that. This is the opposite of `host.command`, which returns
+    /// ok=false for a non-zero exit, and the difference is deliberate: that
+    /// conflation made the control plane treat "the command returned 1" as
+    /// "the runner refused", discard the stderr explaining why, and fail a
+    /// whole session create over a best-effort file write.
+    ///
+    /// So: ok=false here means the exec could not be attempted at all —
+    /// capability off, a context this machine never advertised, a missing pod
+    /// or command, or kubectl itself unusable.
+    private func handleKubeExec(payload: [String: AnyDecodable]) async -> APIClient.ResultPayload {
+        let pre: KubePreflight.Target
+        switch kubePreflight(payload: payload) {
+        case .success(let target):
+            pre = target
+        case .failure(let why):
+            return APIClient.ResultPayload(ok: false, error: why, data: nil)
+        }
+        guard let pod = payload["pod"]?.value as? String, !pod.isEmpty else {
+            return APIClient.ResultPayload(ok: false, error: "pod required", data: nil)
+        }
+        guard let command = payload["command"]?.value as? String, !command.isEmpty else {
+            return APIClient.ResultPayload(ok: false, error: "command required", data: nil)
+        }
+        let requestTimeout = (payload["timeout_s"]?.value as? Int)
+            ?? (payload["timeout_s"]?.value as? Double).map(Int.init)
+            ?? 60
+        do {
+            let out = try await KubeDriver.exec(
+                context: pre.context, namespace: pre.namespace, pod: pod, command: command,
+                requestTimeoutSeconds: max(1, min(requestTimeout, 600))
+            )
+            // Redacted on the way out: a command's output can echo a token it
+            // was given, and this crosses the wire into the execution ledger.
+            return APIClient.ResultPayload(
+                ok: true, error: nil,
+                data: [
+                    "exit_code": AnyEncodable(Int(out.exitCode)),
+                    "stdout": AnyEncodable(Redact.text(out.stdout)),
+                    "stderr": AnyEncodable(Redact.text(out.stderr)),
+                ])
         } catch {
             return APIClient.ResultPayload(ok: false, error: "\(error)", data: nil)
         }

@@ -254,6 +254,39 @@ struct KubeDriver {
 
     /// `kubectl --context=<ctx> -n <ns> delete -f - --ignore-not-found=true`.
     /// Already-absent objects satisfy desired=off rather than failing.
+    /// `kubectl --context=<ctx> -n <ns> exec <pod> -- /bin/sh -c <command>`.
+    ///
+    /// WHY THIS EXISTS, rather than the control plane shelling out to kubectl
+    /// through `host.command`: that path runs commands with the PROFILE's
+    /// environment, where `HOME` is the workspace home. kubectl then looks for
+    /// `$WORKSPACE_HOME/.kube/config`, finds nothing, and reports the context
+    /// missing — so every exec failed with `context "<name>" does not exist`
+    /// while apply/get/delete worked fine, because those come through this
+    /// driver and `run()` uses the app's real environment.
+    ///
+    /// `expectSuccess: false` is deliberate and is the whole point of the
+    /// signature: a command that runs and exits non-zero is a RESULT the caller
+    /// must see, not a driver error. Throwing would collapse "the pod said no"
+    /// into "kubectl broke", which is the same conflation that turned every
+    /// best-effort injection into a hard session-create failure on the other
+    /// side of the wire.
+    ///
+    /// `--request-timeout` bounds the API request because `run()` has no
+    /// timeout of its own: without it a wedged exec would hold a work item
+    /// open forever. It bounds the REQUEST, not the command, so a long-running
+    /// command still needs the caller to background it.
+    static func exec(
+        context: String, namespace: String, pod: String, command: String,
+        requestTimeoutSeconds: Int = 60
+    ) async throws -> Output {
+        try await run(
+            ["--context=\(context)", "-n", namespace,
+             "--request-timeout=\(requestTimeoutSeconds)s",
+             "exec", pod, "--", "/bin/sh", "-c", command],
+            expectSuccess: false
+        )
+    }
+
     static func delete(
         context: String, namespace: String, manifestYAML: String
     ) async throws -> Output {

@@ -352,6 +352,68 @@ final class KubeDriverTests: XCTestCase {
         XCTAssertGreaterThan(out.stderr.utf8.count, 200_000)
         XCTAssertTrue(out.stderr.hasSuffix("done\n"))
     }
+
+    // MARK: - exec
+
+    /// `kubectl exec` through this driver, rather than through `host.command`.
+    ///
+    /// The control plane used to tunnel kubectl through `host.command`, which
+    /// runs with the PROFILE's environment — `HOME` is the workspace home, so
+    /// kubectl looked for `$WORKSPACE_HOME/.kube/config` and reported the
+    /// context missing. Every exec failed that way while apply/get/delete
+    /// worked, because those come through `run()`, which uses the app's real
+    /// environment.
+
+    func test_exec_targetsThePodAndRunsTheCommandThroughSh() async throws {
+        let bin = try fakeKubectl(script: #"printf '%s\n' "$@"; exit 0"#)
+        setenv("PHANTOM_KUBECTL", bin.path, 1)
+        let out = try await KubeDriver.exec(
+            context: "k3s-phantom", namespace: "profile-personal",
+            pod: "assistant-x", command: "echo hi")
+        XCTAssertEqual(out.exitCode, 0)
+        XCTAssertTrue(out.stdout.contains("--context=k3s-phantom"), out.stdout)
+        XCTAssertTrue(out.stdout.contains("profile-personal"), out.stdout)
+        XCTAssertTrue(out.stdout.contains("assistant-x"), out.stdout)
+        XCTAssertTrue(out.stdout.contains("/bin/sh"), out.stdout)
+        XCTAssertTrue(out.stdout.contains("echo hi"), out.stdout)
+    }
+
+    func test_exec_returnsANonZeroExitInsteadOfThrowing() async throws {
+        // A command that runs and fails is a RESULT the caller must see.
+        // Throwing would collapse "the pod said no" into "kubectl broke" —
+        // the conflation that turned every best-effort injection into a hard
+        // session-create failure on the control-plane side.
+        let bin = try fakeKubectl(script: "echo oops >&2; exit 7")
+        setenv("PHANTOM_KUBECTL", bin.path, 1)
+        let out = try await KubeDriver.exec(
+            context: "c", namespace: "n", pod: "p", command: "false")
+        XCTAssertEqual(out.exitCode, 7)
+        XCTAssertTrue(out.stderr.contains("oops"), out.stderr)
+    }
+
+    func test_exec_boundsTheRequestSoAWedgedExecCannotHoldAWorkItemForever() async throws {
+        // `run()` has no timeout of its own, so the bound has to be kubectl's.
+        let bin = try fakeKubectl(script: #"printf '%s\n' "$@"; exit 0"#)
+        setenv("PHANTOM_KUBECTL", bin.path, 1)
+        let out = try await KubeDriver.exec(
+            context: "c", namespace: "n", pod: "p", command: "x",
+            requestTimeoutSeconds: 11)
+        XCTAssertTrue(out.stdout.contains("--request-timeout=11s"), out.stdout)
+    }
+
+    func test_exec_putsTheRequestTimeoutBeforeTheDoubleDash() async throws {
+        // Anything after `--` is the POD's command line, so a flag placed
+        // there would be passed to /bin/sh instead of kubectl.
+        let bin = try fakeKubectl(script: #"printf '%s\n' "$@"; exit 0"#)
+        setenv("PHANTOM_KUBECTL", bin.path, 1)
+        let out = try await KubeDriver.exec(
+            context: "c", namespace: "n", pod: "p", command: "x")
+        let lines = out.stdout.split(separator: "\n").map(String.init)
+        guard let dashdash = lines.firstIndex(of: "--"),
+              let timeout = lines.firstIndex(where: { $0.hasPrefix("--request-timeout") })
+        else { return XCTFail("missing argv markers: \(lines)") }
+        XCTAssertLessThan(timeout, dashdash, "flag landed in the pod's command line: \(lines)")
+    }
 }
 
 extension KubeDriverTests {
@@ -442,4 +504,5 @@ private func withTimeout<T: Sendable>(
         defer { group.cancelAll() }
         return try await group.next()!
     }
+
 }

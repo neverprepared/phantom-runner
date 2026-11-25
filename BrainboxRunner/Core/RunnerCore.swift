@@ -11,6 +11,11 @@ final class RunnerCore {
     private var pollTask: Task<Void, Never>?
     private var heartbeatTask: Task<Void, Never>?
     private var paused: Bool = false
+    /// Set when the control plane answers 404 for this runner (it was evicted,
+    /// e.g. by fleet's reap_stale after a network outage). The work loop then
+    /// leaves its poll phase and registers again. Both the poll loop and the
+    /// heartbeat loop set it; both run on the main actor.
+    private var needsRegistration: Bool = false
     private var lastError: String?
 
     /// Count of work items currently being provisioned. Reported to the API
@@ -171,117 +176,146 @@ final class RunnerCore {
             machine_id: machineID,
             ollama_proxy_port: ollamaProxyPort
         )
+        // Registration is NOT one-shot. If the control plane later forgets this
+        // runner (a 404 from /pending or /heartbeat), the work phase ends and we
+        // come back here. Before 2026-11-25 a runner registered once and then
+        // polled a 404 forever after any eviction; fleet showed 0 runners for an
+        // hour after a network blip while every runner was still up.
         while !Task.isCancelled {
-            do {
-                _ = try await client.register(register)
-                updateStatus(.connected, error: nil)
-                log.info("registered as \(name, privacy: .public)")
-                // Drain results AND envelopes queued during the last outage
-                await resultQueue.drain(client: client)
-                await envelopeQueue.drain(client: client)
-                break
-            } catch APIClient.APIError.unauthorized {
-                updateStatus(.disconnected, error: "unauthorized")
-                log.error("register: unauthorized")
-                return
-            } catch {
-                updateStatus(.disconnected, error: "register: \(error)")
-                log.warning("register failed, retrying: \(String(describing: error), privacy: .public)")
-                try? await Task.sleep(nanoseconds: 5_000_000_000)
-            }
-        }
-
-        // Phase 2: concurrent work dispatch.
-        // Each work item is handled in its own unstructured Task so the poll
-        // loop can immediately fetch the next item without waiting for the
-        // current one to finish (Docker pull + create can take 30-90s).
-        while !Task.isCancelled {
-            if paused {
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
-                continue
+            while !Task.isCancelled {
+                do {
+                    _ = try await client.register(register)
+                    updateStatus(.connected, error: nil)
+                    log.info("registered as \(name, privacy: .public)")
+                    // Drain results AND envelopes queued during the last outage
+                    await resultQueue.drain(client: client)
+                    await envelopeQueue.drain(client: client)
+                    break
+                } catch APIClient.APIError.unauthorized {
+                    updateStatus(.disconnected, error: "unauthorized")
+                    log.error("register: unauthorized")
+                    return
+                } catch {
+                    updateStatus(.disconnected, error: "register: \(error)")
+                    log.warning("register failed, retrying: \(String(describing: error), privacy: .public)")
+                    try? await Task.sleep(nanoseconds: 5_000_000_000)
+                }
             }
 
-            // Throttle: stop polling when we're already at capacity.
-            if inFlight >= maxConcurrent {
-                try? await Task.sleep(nanoseconds: 500_000_000)
-                continue
-            }
+            needsRegistration = false
 
-            do {
-                guard let work = try await client.pollPending(runnerName: name) else { continue }
-                log.info("work received id=\(work.id, privacy: .public) kind=\(work.kind, privacy: .public) in_flight=\(self.inFlight + 1)/\(maxConcurrent)")
-                inFlight += 1
-                updateStatus(inFlight >= maxConcurrent ? .busy : .connected, error: nil)
+            // Phase 2: concurrent work dispatch.
+            // Each work item is handled in its own unstructured Task so the poll
+            // loop can immediately fetch the next item without waiting for the
+            // current one to finish (Docker pull + create can take 30-90s).
+            while !Task.isCancelled && !needsRegistration {
+                if paused {
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    continue
+                }
 
-                // Bus: work received -> active. Title comes from kind so the UI
-                // shows something meaningful even before the executor finishes.
-                let workStartMs = nowMillis()
-                await envelopeQueue.append(envelopeForWork(
-                    name: name, work: work, status: "active",
-                    type: "runner.work.running", startAt: workStartMs, endAt: nil,
-                    extraMeta: ["in_flight": .of(Int64(self.inFlight))]
-                ))
-                await envelopeQueue.drain(client: client)
+                // Throttle: stop polling when we're already at capacity.
+                if inFlight >= maxConcurrent {
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    continue
+                }
 
-                // Unstructured task — don't await it, so the poll loop
-                // continues immediately and can pick up more work.
-                Task { [weak self, name] in
-                    guard let self else { return }
-                    let result = await self.handle(work: work)
+                do {
+                    guard let work = try await client.pollPending(runnerName: name) else { continue }
+                    log.info("work received id=\(work.id, privacy: .public) kind=\(work.kind, privacy: .public) in_flight=\(self.inFlight + 1)/\(maxConcurrent)")
+                    inFlight += 1
+                    updateStatus(inFlight >= maxConcurrent ? .busy : .connected, error: nil)
 
-                    if let jsonData = try? JSONEncoder().encode(result) {
-                        do {
-                            try await client.postResultRaw(
-                                runnerName: name,
-                                workID: work.id,
-                                jsonData: jsonData
-                            )
-                            self.log.info("result posted: work=\(work.id, privacy: .public)")
-                        } catch {
-                            // API unreachable — queue for deferred delivery
-                            await self.resultQueue.add(
-                                runnerName: name,
-                                workID: work.id,
-                                jsonData: jsonData
-                            )
-                            self.log.warning("result queued (post failed): work=\(work.id, privacy: .public)")
+                    // Bus: work received -> active. Title comes from kind so the UI
+                    // shows something meaningful even before the executor finishes.
+                    let workStartMs = nowMillis()
+                    await envelopeQueue.append(envelopeForWork(
+                        name: name, work: work, status: "active",
+                        type: "runner.work.running", startAt: workStartMs, endAt: nil,
+                        extraMeta: ["in_flight": .of(Int64(self.inFlight))]
+                    ))
+                    await envelopeQueue.drain(client: client)
+
+                    // Unstructured task — don't await it, so the poll loop
+                    // continues immediately and can pick up more work.
+                    Task { [weak self, name] in
+                        guard let self else { return }
+                        let result = await self.handle(work: work)
+
+                        if let jsonData = try? JSONEncoder().encode(result) {
+                            do {
+                                try await client.postResultRaw(
+                                    runnerName: name,
+                                    workID: work.id,
+                                    jsonData: jsonData
+                                )
+                                self.log.info("result posted: work=\(work.id, privacy: .public)")
+                            } catch {
+                                // API unreachable — queue for deferred delivery
+                                await self.resultQueue.add(
+                                    runnerName: name,
+                                    workID: work.id,
+                                    jsonData: jsonData
+                                )
+                                self.log.warning("result queued (post failed): work=\(work.id, privacy: .public)")
+                            }
+                        }
+
+                        // Bus: work done -> done|failed. Carries exit/error so the
+                        // attention aggregator can surface terminal failures.
+                        let envStatus = result.ok ? "done" : "failed"
+                        let envType   = result.ok ? "runner.work.done" : "runner.work.failed"
+                        let endMs = await self.nowMillisAsync()
+                        var meta: [String: AnyCodableValue] = [:]
+                        if let err = result.error, !err.isEmpty {
+                            meta["error"] = .of(err)
+                        }
+                        let env = await self.envelopeForWorkAsync(
+                            name: name, work: work, status: envStatus,
+                            type: envType, startAt: workStartMs, endAt: endMs,
+                            extraMeta: meta
+                        )
+                        await self.envelopeQueue.append(env)
+                        await self.envelopeQueue.drain(client: client)
+
+                        self.inFlight -= 1
+                        if self.inFlight == 0 && !self.paused {
+                            self.updateStatus(.connected, error: nil)
                         }
                     }
 
-                    // Bus: work done -> done|failed. Carries exit/error so the
-                    // attention aggregator can surface terminal failures.
-                    let envStatus = result.ok ? "done" : "failed"
-                    let envType   = result.ok ? "runner.work.done" : "runner.work.failed"
-                    let endMs = await self.nowMillisAsync()
-                    var meta: [String: AnyCodableValue] = [:]
-                    if let err = result.error, !err.isEmpty {
-                        meta["error"] = .of(err)
-                    }
-                    let env = await self.envelopeForWorkAsync(
-                        name: name, work: work, status: envStatus,
-                        type: envType, startAt: workStartMs, endAt: endMs,
-                        extraMeta: meta
-                    )
-                    await self.envelopeQueue.append(env)
-                    await self.envelopeQueue.drain(client: client)
-
-                    self.inFlight -= 1
-                    if self.inFlight == 0 && !self.paused {
-                        self.updateStatus(.connected, error: nil)
-                    }
+                } catch APIClient.APIError.unauthorized {
+                    updateStatus(.disconnected, error: "unauthorized")
+                    log.error("poll: unauthorized")
+                    return
+                } catch where Self.isEviction(error) {
+                    needsRegistration = true
+                    log.warning("poll: control plane no longer knows this runner (404); re-registering")
+                } catch {
+                    updateStatus(.disconnected, error: "poll: \(error)")
+                    log.warning("poll failed: \(String(describing: error), privacy: .public)")
+                    try? await Task.sleep(nanoseconds: 2_000_000_000)
+                    if !Task.isCancelled { updateStatus(.connected, error: nil) }
                 }
+            }
 
-            } catch APIClient.APIError.unauthorized {
-                updateStatus(.disconnected, error: "unauthorized")
-                log.error("poll: unauthorized")
-                return
-            } catch {
-                updateStatus(.disconnected, error: "poll: \(error)")
-                log.warning("poll failed: \(String(describing: error), privacy: .public)")
-                try? await Task.sleep(nanoseconds: 2_000_000_000)
-                if !Task.isCancelled { updateStatus(.connected, error: nil) }
+            if needsRegistration && !Task.isCancelled {
+                // In-flight work keeps running in its own tasks; only polling for
+                // NEW work pauses until we are registered again.
+                updateStatus(.disconnected, error: "evicted; re-registering")
             }
         }
+    }
+
+    /// An eviction is the control plane answering 404 for this runner: it no
+    /// longer has a registration for it. A 401 is a bad key and is NOT an
+    /// eviction (re-registering cannot fix it); 5xx and transport errors are
+    /// transient and are retried in place.
+    nonisolated static func isEviction(_ error: Error) -> Bool {
+        if case APIClient.APIError.http(let status, _) = error {
+            return RunnerEviction.isEviction(status: status)
+        }
+        return false
     }
 
     // MARK: - Heartbeat loop
@@ -299,6 +333,9 @@ final class RunnerCore {
                     inFlight: inFlight,
                     maxConcurrent: maxConcurrent
                 )
+            } catch where Self.isEviction(error) {
+                needsRegistration = true
+                log.warning("heartbeat: control plane no longer knows this runner (404); re-registering")
             } catch {
                 log.warning("heartbeat failed: \(String(describing: error), privacy: .public)")
             }

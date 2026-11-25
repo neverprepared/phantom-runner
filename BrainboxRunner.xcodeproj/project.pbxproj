@@ -28,6 +28,7 @@
 		641223DBE763BA4C8DBD537E /* Redact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E55C42EBC0D86759BA47F6 /* Redact.swift */; };
 		64BA44A6807A3476CF284C50 /* OllamaProxy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EFCBACB40D0F4803FA89E21 /* OllamaProxy.swift */; };
 		65E3E524AC8E93E454C5E9DC /* GeneralTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = F086A7A37B58DFF46E9C5EA7 /* GeneralTab.swift */; };
+		69E760095E80CA718C45F299 /* RunnerEviction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45ABE429CBE7C0979FC06862 /* RunnerEviction.swift */; };
 		6DA18997ED6AE638668D2CB7 /* KubeDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D7BFA72803F78F397E999E3 /* KubeDriver.swift */; };
 		6E1AB47D4EC526C4280C0A95 /* APITab.swift in Sources */ = {isa = PBXBuildFile; fileRef = E842C94C4DD59B5C0A05394B /* APITab.swift */; };
 		6FA4E55A593A193AF2EDFE92 /* CapabilitiesTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4DD14E847EA76E2F0BC3C6C /* CapabilitiesTab.swift */; };
@@ -41,6 +42,7 @@
 		9C49F41F759E2B48EF2D8E2A /* RunnerCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21474723A4C0F931EF8B78E7 /* RunnerCore.swift */; };
 		9E1CAFA3E307A81CF35EFC48 /* KubeCapability.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39788789B49694F1066C624C /* KubeCapability.swift */; };
 		A6A37232AD3C400D63719926 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9CBCADD106AF6A8E7400034 /* APIClient.swift */; };
+		A9641C2B2CF679201984C68C /* RunnerEvictionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E2FE3A696BD73593593F551 /* RunnerEvictionTests.swift */; };
 		AB8E1B0062C3A6C833178B04 /* ProfileEnvTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5552E2FA6B2D91E22F79E87B /* ProfileEnvTests.swift */; };
 		B0DA9FBB6BD550F0100AC2DE /* ResultQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F3976E860595DD8938C9E40 /* ResultQueue.swift */; };
 		B61096DEB9EBA926F1FA181F /* RedactTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A5A0C4F643491179D17A29 /* RedactTests.swift */; };
@@ -57,6 +59,7 @@
 		EA52DC4DCC0D983C3EC7E0B8 /* RemindersAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27F9C6CD03A3B03FA495B8A9 /* RemindersAccessTests.swift */; };
 		EB09840CCC83797A4BFE4107 /* KubeDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D7BFA72803F78F397E999E3 /* KubeDriver.swift */; };
 		EB9AEA8E819296CFD11C20C2 /* IntegrationEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD2C8017EC91833834A05DAA /* IntegrationEngineTests.swift */; };
+		F29A54D9415282024729AF51 /* RunnerEviction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45ABE429CBE7C0979FC06862 /* RunnerEviction.swift */; };
 		F91D1D23D28052FC256A5372 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1B73148F93D766B5072CFFAC /* Assets.xcassets */; };
 		FB6FB7DA4A9C608107009899 /* CredentialsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAE3E95E6AF56E6355785936 /* CredentialsTab.swift */; };
 /* End PBXBuildFile section */
@@ -74,6 +77,7 @@
 		2BB0723FB7FE5B2EF93E2DF2 /* CredentialCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialCache.swift; sourceTree = "<group>"; };
 		2F3976E860595DD8938C9E40 /* ResultQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultQueue.swift; sourceTree = "<group>"; };
 		39788789B49694F1066C624C /* KubeCapability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KubeCapability.swift; sourceTree = "<group>"; };
+		45ABE429CBE7C0979FC06862 /* RunnerEviction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerEviction.swift; sourceTree = "<group>"; };
 		48E6D96C32D74563C08B58D9 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
 		4EFCBACB40D0F4803FA89E21 /* OllamaProxy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OllamaProxy.swift; sourceTree = "<group>"; };
 		52FD252830BA9A9787CC46A2 /* KubePreflightTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KubePreflightTests.swift; sourceTree = "<group>"; };
@@ -82,6 +86,7 @@
 		59D00EE7A7D6EF4EB2323136 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		67F3328A18BBE207ACE1F392 /* RemindersAccess+EventKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RemindersAccess+EventKit.swift"; sourceTree = "<group>"; };
 		68A5A0C4F643491179D17A29 /* RedactTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedactTests.swift; sourceTree = "<group>"; };
+		6E2FE3A696BD73593593F551 /* RunnerEvictionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerEvictionTests.swift; sourceTree = "<group>"; };
 		714A9795824794549026F9FE /* BrainboxRunner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BrainboxRunner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7660EEBCC042C876EF4B4602 /* Envelope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Envelope.swift; sourceTree = "<group>"; };
 		7933890370CA640A6AA6064F /* BrainboxRunnerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrainboxRunnerApp.swift; sourceTree = "<group>"; };
@@ -145,6 +150,7 @@
 				C0DF960A11B39A70296B5C18 /* RemindersAccessState.swift */,
 				2F3976E860595DD8938C9E40 /* ResultQueue.swift */,
 				21474723A4C0F931EF8B78E7 /* RunnerCore.swift */,
+				45ABE429CBE7C0979FC06862 /* RunnerEviction.swift */,
 				1CF739ED95538D21742A5C07 /* SessionExecutor.swift */,
 				21023EC451C6D89E143AF9B0 /* SettingsStore.swift */,
 				A45E5E6DCD243E4590EE1E89 /* SSHDriver.swift */,
@@ -192,6 +198,7 @@
 				5552E2FA6B2D91E22F79E87B /* ProfileEnvTests.swift */,
 				68A5A0C4F643491179D17A29 /* RedactTests.swift */,
 				27F9C6CD03A3B03FA495B8A9 /* RemindersAccessTests.swift */,
+				6E2FE3A696BD73593593F551 /* RunnerEvictionTests.swift */,
 			);
 			path = Tests;
 			sourceTree = "<group>";
@@ -250,7 +257,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 1430;
+				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					14E9103722CE538ECC760322 = {
 						DevelopmentTeam = "";
@@ -314,6 +321,8 @@
 				B61096DEB9EBA926F1FA181F /* RedactTests.swift in Sources */,
 				7125495770E1319FEC406B9C /* RemindersAccessState.swift in Sources */,
 				EA52DC4DCC0D983C3EC7E0B8 /* RemindersAccessTests.swift in Sources */,
+				69E760095E80CA718C45F299 /* RunnerEviction.swift in Sources */,
+				A9641C2B2CF679201984C68C /* RunnerEvictionTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -349,6 +358,7 @@
 				BD2EBBBCD533A34CBE183916 /* RemindersAccessState.swift in Sources */,
 				B0DA9FBB6BD550F0100AC2DE /* ResultQueue.swift in Sources */,
 				9C49F41F759E2B48EF2D8E2A /* RunnerCore.swift in Sources */,
+				F29A54D9415282024729AF51 /* RunnerEviction.swift in Sources */,
 				3B5672C111147237E1F26414 /* SSHDriver.swift in Sources */,
 				8B5F5A11D47C749D7E673BC4 /* SessionExecutor.swift in Sources */,
 				2FFEAB2AD8991F2714256500 /* SettingsStore.swift in Sources */,
@@ -397,7 +407,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 9;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -412,7 +422,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 0.1.23;
+				MARKETING_VERSION = 0.2.1;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = BrainboxRunner;
@@ -498,7 +508,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 9;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -519,7 +529,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 0.1.23;
+				MARKETING_VERSION = 0.2.1;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

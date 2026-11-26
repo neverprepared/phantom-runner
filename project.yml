@@ -10,8 +10,8 @@ settings:
   base:
     SWIFT_VERSION: "5.9"
     PRODUCT_NAME: BrainboxRunner            # filename on disk; user-visible name lives in CFBundleDisplayName
-    MARKETING_VERSION: "0.2.1"
-    CURRENT_PROJECT_VERSION: "9"
+    MARKETING_VERSION: "0.2.2"
+    CURRENT_PROJECT_VERSION: "10"
     DEVELOPMENT_TEAM: ""        # set via export DEVELOPMENT_TEAM=... before xcodegen
     CODE_SIGN_STYLE: Automatic
     ENABLE_HARDENED_RUNTIME: YES
@@ -80,6 +80,7 @@ targets:
       - path: BrainboxRunner/Core/RemindersAccessState.swift
       # Eviction policy behind re-registration (dependency-free).
       - path: BrainboxRunner/Core/RunnerEviction.swift
+      - path: BrainboxRunner/Core/CredentialShape.swift
       - path: BrainboxRunner/Core/HostCommandDriver.swift
     settings:
       base:

@@ -10,6 +10,10 @@ final class RunnerCore {
 
     private var pollTask: Task<Void, Never>?
     private var heartbeatTask: Task<Void, Never>?
+    /// The client the running loop authenticates with. Work handlers use it
+    /// instead of re-reading the Keychain, so every request this process makes
+    /// carries the same credential until a restart.
+    private var activeClient: APIClient?
     private var paused: Bool = false
     /// Set when the control plane answers 404 for this runner (it was evicted,
     /// e.g. by fleet's reap_stale after a network outage). The work loop then
@@ -62,6 +66,7 @@ final class RunnerCore {
         }
 
         let client = APIClient(baseURL: baseURL, apiKey: apiKey)
+        activeClient = client
         let name = settings.runnerName.isEmpty ? "runner" : settings.runnerName
         let machineID = settings.machineID
         let host = settings.runnerHost.isEmpty ? nil : settings.runnerHost
@@ -121,6 +126,7 @@ final class RunnerCore {
         }
         pollTask = nil
         heartbeatTask = nil
+        activeClient = nil
         inFlight = 0
         owner?.ollamaProxy.stop()
         updateStatus(.disconnected, error: nil)
@@ -602,11 +608,10 @@ final class RunnerCore {
                 data: nil
             )
         }
-        guard let baseURL = URL(string: owner.settings.apiURL),
-              let apiKey = KeychainStore.loadAPIKey(), !apiKey.isEmpty else {
+        guard let api = activeClient else {
             return APIClient.ResultPayload(
                 ok: false,
-                error: "runner missing apiURL or API key",
+                error: "runner is not connected",
                 data: nil
             )
         }
@@ -614,7 +619,7 @@ final class RunnerCore {
         let exec = SessionExecutor(
             runnerName: owner.settings.runnerName,
             runnerHost: runnerHost,
-            api: APIClient(baseURL: baseURL, apiKey: apiKey),
+            api: api,
             settings: owner.settings
         )
         return await exec.execute(payload: payload)

@@ -46,12 +46,29 @@ struct CredentialsTab: View {
     private func saveKey() {
         saved = false
         saveError = nil
+        switch CredentialShape.classify(apiKey) {
+        case .apiKey:
+            break
+        case .pairingCode:
+            // The Wails app's Pair-a-Runner screen shows a short one-time code;
+            // it is not the key. Send it through pairing instead of storing it.
+            saveError = "That is a pairing code, not an API key. Use \"Pair with a brainbox API…\" below."
+            showingPairing = true
+            return
+        case .invalid:
+            saveError = "Not an API key: expected 64 hex characters."
+            return
+        }
         do {
             try KeychainStore.saveAPIKey(apiKey)
             apiKey = ""
             saved = true
         } catch {
             saveError = "save failed: \(error)"
+            return
         }
+        // Restart so the runner uses the new key now. Without this a bad key
+        // stays hidden behind the good one held in memory until a relaunch.
+        Task { await state.reloadRunner() }
     }
 }

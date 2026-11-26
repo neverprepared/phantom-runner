@@ -157,11 +157,17 @@ notarizes via `notarytool`, staples, builds the DMG, and creates the GitHub
 Release. Bump `MARKETING_VERSION` (and `CURRENT_PROJECT_VERSION`) in
 `project.yml` in the same commit as the tag.
 
-**There are no tests and no linter in this repo.** `project.yml` declares a
-single `application` target with no test target, and CI runs a Debug build only.
-Do not claim `make test` / `swift test` works — verification here means "the
-`xcodebuild` above succeeds". If you add behaviour worth testing, adding a
-`BrainboxRunnerTests` unit-test target to `project.yml` is the right move.
+Tests (matches CI's Test step; there is no linter):
+
+```bash
+xcodebuild -project BrainboxRunner.xcodeproj -scheme BrainboxRunner \
+  -configuration Debug -destination "platform=macOS" \
+  CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO test
+```
+
+The `BrainboxRunnerTests` target compiles only dependency-free sources, listed
+one by one in `project.yml`. To test new logic, put it in its own file with no
+app dependencies and add that file to the test target's `sources`.
 
 Logs (OSLog, subsystem `com.neverprepared.brainbox-runner`, categories
 `core`, `docker`, `utm`, `ssh`, `session`):

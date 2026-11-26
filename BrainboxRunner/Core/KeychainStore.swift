@@ -12,9 +12,18 @@ enum KeychainStore {
 
     enum KeychainError: Error {
         case status(OSStatus)
+        /// The value is not shaped like a credential (see CredentialShape).
+        case notACredential(CredentialShape)
     }
 
-    static func saveAPIKey(_ key: String) throws {
+    /// Store the runner's credential. Refuses anything that is not a 64-hex
+    /// credential (a pairing code, a truncated paste), because the running loop
+    /// would keep using the good key in memory and the bad value would surface
+    /// only at the next Keychain read: a session create, or the next relaunch.
+    static func saveAPIKey(_ raw: String) throws {
+        guard let key = CredentialShape.normalizedAPIKey(raw) else {
+            throw KeychainError.notACredential(CredentialShape.classify(raw))
+        }
         let data = Data(key.utf8)
         // Delete any prior entry; SecItemUpdate is more code than it's worth.
         let baseQuery: [String: Any] = [
@@ -24,7 +33,6 @@ enum KeychainStore {
         ]
         SecItemDelete(baseQuery as CFDictionary)
 
-        guard !key.isEmpty else { return }
         var add = baseQuery
         add[kSecValueData as String] = data
         add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock

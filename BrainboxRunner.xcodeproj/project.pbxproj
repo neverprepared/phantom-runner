@@ -37,9 +37,11 @@
 		76762D4752C4A3EB5FEAB15D /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD6412DF41930DBC3C0FBF75 /* SettingsView.swift */; };
 		84ACBD350D7FE94999B5DD2E /* KubeCapability.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39788789B49694F1066C624C /* KubeCapability.swift */; };
 		8B5F5A11D47C749D7E673BC4 /* SessionExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CF739ED95538D21742A5C07 /* SessionExecutor.swift */; };
+		8D28AA02B10D0090022AAF3B /* CredentialShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1298AB75A6C93B4CE747F66 /* CredentialShape.swift */; };
 		96EB04D3E7DA245DDAD6C1D7 /* HostCommandDriver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F883BF63BA4E17288093B9F8 /* HostCommandDriver.swift */; };
 		9B583E873453DFE37EBD99C4 /* ProfileEnv.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DE7873A141AFC515FADA42C /* ProfileEnv.swift */; };
 		9C49F41F759E2B48EF2D8E2A /* RunnerCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21474723A4C0F931EF8B78E7 /* RunnerCore.swift */; };
+		9DA293D0B883DDA16DAB7F11 /* CredentialShapeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08EE90457D8D7BD17B54DC11 /* CredentialShapeTests.swift */; };
 		9E1CAFA3E307A81CF35EFC48 /* KubeCapability.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39788789B49694F1066C624C /* KubeCapability.swift */; };
 		A6A37232AD3C400D63719926 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9CBCADD106AF6A8E7400034 /* APIClient.swift */; };
 		A9641C2B2CF679201984C68C /* RunnerEvictionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E2FE3A696BD73593593F551 /* RunnerEvictionTests.swift */; };
@@ -47,6 +49,7 @@
 		B0DA9FBB6BD550F0100AC2DE /* ResultQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F3976E860595DD8938C9E40 /* ResultQueue.swift */; };
 		B61096DEB9EBA926F1FA181F /* RedactTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A5A0C4F643491179D17A29 /* RedactTests.swift */; };
 		BD2EBBBCD533A34CBE183916 /* RemindersAccessState.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DF960A11B39A70296B5C18 /* RemindersAccessState.swift */; };
+		C2B025BFEAF964908FCF1343 /* CredentialShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1298AB75A6C93B4CE747F66 /* CredentialShape.swift */; };
 		C31726D969EAEBD2F79146CF /* KubeDriverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D07FCB285ADB429CC3DAAAD4 /* KubeDriverTests.swift */; };
 		CB859BD667C5A6CD0E9001B0 /* PairingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6A5F52ABCCA21584ED708EE /* PairingSheet.swift */; };
 		CF6DE7EE73F07B99EE08B939 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48E6D96C32D74563C08B58D9 /* MenuBarView.swift */; };
@@ -67,6 +70,7 @@
 /* Begin PBXFileReference section */
 		00BA82D894DE3FE091155322 /* EnvelopeQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvelopeQueue.swift; sourceTree = "<group>"; };
 		0757B08D76E36F77E3549A66 /* PairingClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingClient.swift; sourceTree = "<group>"; };
+		08EE90457D8D7BD17B54DC11 /* CredentialShapeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialShapeTests.swift; sourceTree = "<group>"; };
 		1B73148F93D766B5072CFFAC /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1C474757D9766CE01411A2BD /* BrainboxRunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BrainboxRunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1CF739ED95538D21742A5C07 /* SessionExecutor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionExecutor.swift; sourceTree = "<group>"; };
@@ -107,6 +111,7 @@
 		CDA8C9406482E6EBF2C0D682 /* AppleScriptRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptRunner.swift; sourceTree = "<group>"; };
 		D07FCB285ADB429CC3DAAAD4 /* KubeDriverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KubeDriverTests.swift; sourceTree = "<group>"; };
 		D6A5F52ABCCA21584ED708EE /* PairingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingSheet.swift; sourceTree = "<group>"; };
+		E1298AB75A6C93B4CE747F66 /* CredentialShape.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialShape.swift; sourceTree = "<group>"; };
 		E3A246AD11A400CC25A53D3B /* UTMDriver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UTMDriver.swift; sourceTree = "<group>"; };
 		E842C94C4DD59B5C0A05394B /* APITab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APITab.swift; sourceTree = "<group>"; };
 		F086A7A37B58DFF46E9C5EA7 /* GeneralTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralTab.swift; sourceTree = "<group>"; };
@@ -133,6 +138,7 @@
 				CDA8C9406482E6EBF2C0D682 /* AppleScriptRunner.swift */,
 				AB7E6477BF6AA5CD2AE3F533 /* AppState.swift */,
 				2BB0723FB7FE5B2EF93E2DF2 /* CredentialCache.swift */,
+				E1298AB75A6C93B4CE747F66 /* CredentialShape.swift */,
 				F14B05128CFCC3468235E098 /* DockerDriver.swift */,
 				7660EEBCC042C876EF4B4602 /* Envelope.swift */,
 				00BA82D894DE3FE091155322 /* EnvelopeQueue.swift */,
@@ -191,6 +197,7 @@
 		9FB5C9DAB2D444FF7FBEB223 /* Tests */ = {
 			isa = PBXGroup;
 			children = (
+				08EE90457D8D7BD17B54DC11 /* CredentialShapeTests.swift */,
 				FD2C8017EC91833834A05DAA /* IntegrationEngineTests.swift */,
 				C156240CAA9FCD49DD68EC13 /* KubeCapabilityTests.swift */,
 				D07FCB285ADB429CC3DAAAD4 /* KubeDriverTests.swift */,
@@ -305,6 +312,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C2B025BFEAF964908FCF1343 /* CredentialShape.swift in Sources */,
+				9DA293D0B883DDA16DAB7F11 /* CredentialShapeTests.swift in Sources */,
 				D61140724610C3979E7BE362 /* DockerDriver.swift in Sources */,
 				4CF72BDD125F574D1DBC8190 /* HostCommandDriver.swift in Sources */,
 				E13096461A473312C4C23480 /* IntegrationEngine.swift in Sources */,
@@ -337,6 +346,7 @@
 				4CC2925BC34F83F10177706B /* BrainboxRunnerApp.swift in Sources */,
 				6FA4E55A593A193AF2EDFE92 /* CapabilitiesTab.swift in Sources */,
 				E88F0C60D91476ED6F4960F4 /* CredentialCache.swift in Sources */,
+				8D28AA02B10D0090022AAF3B /* CredentialShape.swift in Sources */,
 				FB6FB7DA4A9C608107009899 /* CredentialsTab.swift in Sources */,
 				34835E9A21EAA7756A0C8082 /* DockerDriver.swift in Sources */,
 				4D2714DA5AAD44E24E087B2E /* Envelope.swift in Sources */,
@@ -407,7 +417,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -422,7 +432,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 0.2.1;
+				MARKETING_VERSION = 0.2.2;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = BrainboxRunner;
@@ -508,7 +518,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 9;
+				CURRENT_PROJECT_VERSION = 10;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -529,7 +539,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 0.2.1;
+				MARKETING_VERSION = 0.2.2;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
